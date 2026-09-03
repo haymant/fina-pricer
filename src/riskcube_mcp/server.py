@@ -12,7 +12,7 @@ from .core import PricingRequest, sensitivity
 allowed_hosts = [
     host.strip()
     for host in os.getenv(
-        "ALLOWED_HOSTS", "localhost,127.0.0.1,[::1],fina-pricer.vercel.app,*.vercel.app"
+        "ALLOWED_HOSTS", "localhost,127.0.0.1,[::1],localhost:*,127.0.0.1:*,[::1]:*,fina-pricer.vercel.app,fina-pricer.vercel.app:*"
     ).split(",")
     if host.strip()
 ]

@@ -10,6 +10,7 @@ import numpy as np
 from autograd import grad  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .smooth_barrier_backend import smooth_barrier_aad_greeks
 from .svi_backend import svi_aad_greeks
 from .xad_backend import native_xad_vanilla_greeks
 
@@ -122,6 +123,8 @@ class PricingParameters(BaseModel):
     bump_size: float = Field(default=1e-4, gt=0)
     bump_mode: Literal["relative", "absolute"] = "relative"
     currency_conversion: float = Field(default=1.0, gt=0)
+    smooth_barrier: bool = False
+    barrier_smoothing_width: float = Field(default=0.01, gt=0, le=0.25)
 
     @model_validator(mode="after")
     def dates_are_ordered(self) -> PricingParameters:
@@ -404,11 +407,35 @@ def _aad_greeks(request: PricingRequest, z: np.ndarray) -> dict[str, float]:
 def sensitivity(request: PricingRequest) -> dict[str, Any]:
     base = price_request(request)
     p = request.parameters
-    smooth = p.payoff_type == "vanilla" and not p.barriers and p.accrual is None
+    smooth_vanilla = p.payoff_type == "vanilla" and not p.barriers and p.accrual is None
+    smooth_barrier = p.smooth_barrier and bool(p.barriers) and p.accrual is None
+    smooth = smooth_vanilla or smooth_barrier
     aad: dict[str, Any] | None = None
     if smooth:
         u = request.unwind_map.underlyings[0]
-        if p.svi is not None:
+        if smooth_barrier:
+            u = request.unwind_map.underlyings[0]
+            aad = smooth_barrier_aad_greeks(
+                u.spot,
+                u.strikePrice,
+                p.risk_free_rate,
+                p.dividend_yield,
+                p.volatility,
+                (date.fromisoformat(p.expiry) - date.fromisoformat(p.eval_datetime)).days / 365.0,
+                p.eval_datetime,
+                p.expiry,
+                p.option_type,
+                p.payoff_type,
+                request.instrument.notional,
+                p.currency_conversion,
+                [b.model_dump() for b in p.barriers],
+                p.steps,
+                p.paths,
+                p.seed,
+                p.barrier_smoothing_width,
+            )
+            model_name = "sigmoid-smoothed barrier Monte Carlo with reverse-mode AAD"
+        elif p.svi is not None:
             aad = svi_aad_greeks(
                 u.spot,
                 u.strikePrice,
@@ -442,7 +469,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 **base.diagnostics,
                 "model": model_name,
                 "aad_backend": aad["backend"],
-                **({"svi_parameters": p.svi.model_dump(), "svi_convention": aad["svi_convention"]} if p.svi is not None else {"xad_version": aad["xad_version"]}),
+                **({"svi_parameters": p.svi.model_dump(), "svi_convention": aad["svi_convention"]} if p.svi is not None else ({"smooth_barrier": True, "barrier_smoothing_width": p.barrier_smoothing_width, "smoothing_convention": aad["smoothing_convention"]} if smooth_barrier else {"xad_version": aad["xad_version"]})),
             },
         )
     h = p.bump_size

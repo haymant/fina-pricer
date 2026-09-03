@@ -1,0 +1,28 @@
+{
+  "exact_pv": 22958.21088956278,
+  "exact_model": "risk-neutral GBM Monte Carlo"
+}
+{
+  "width": 0.02,
+  "pv": 24916.796665251914,
+  "pv_bias": 1958.5857756891346,
+  "delta": -27651.68786055177,
+  "gamma": 19087.260460621437,
+  "method": "AAD: reverse-mode sigmoid-smoothed barrier tape (autograd)"
+}
+{
+  "width": 0.01,
+  "pv": 23530.126658709192,
+  "pv_bias": 571.9157691464134,
+  "delta": -27296.611649643924,
+  "gamma": 13639.867169888768,
+  "method": "AAD: reverse-mode sigmoid-smoothed barrier tape (autograd)"
+}
+{
+  "width": 0.005,
+  "pv": 23088.34807796709,
+  "pv_bias": 130.13718840431102,
+  "delta": -26722.27155144963,
+  "gamma": 334.746581968624,
+  "method": "AAD: reverse-mode sigmoid-smoothed barrier tape (autograd)"
+}

@@ -15,9 +15,9 @@ Configure the AAD backend explicitly in the pipeline. The supported backend orde
 
 1. `quantlib_risks_xad`: use the PyPI `QuantLib-Risks` package with `xad.adj_1st.Tape`; this is the primary Python AAD backend for supported QuantLib pricing paths.
 2. `xad_quantlib`: use a separately built XAD/QuantLibAAD C++ integration only when a project requires features not exposed by the Python package.
-3. `finite_difference`: permitted only for discontinuous barrier, digital, callability, and memory-state transitions, and only when the request explicitly allows a fallback. Report the fallback method per cell.
+3. `finite_difference`: permitted only for discontinuous barrier, digital, callability, and memory-state transitions, and only when the request explicitly allows a fallback. Report the fallback method per cell. For barrier event risk, requests may instead set `parameters.smooth_barrier=true` to use sigmoid-smoothed reverse-mode AAD; report the smoothing width and treat the result as a differentiable approximation, not exact event-state risk.
 
-If the user says “AAD only,” use `QuantLib-Risks`/XAD for every supported smooth QuantLib path and fail closed for unsupported discontinuous sensitivities instead of silently substituting finite differences. Return the unsupported RFKs and the missing AAD capability configuration.
+If the user says “AAD only,” use `QuantLib-Risks`/XAD for every supported smooth QuantLib path and fail closed for unsupported discontinuous sensitivities instead of silently substituting finite differences. Return the unsupported RFKs and the missing AAD capability configuration. If sigmoid smoothing is explicitly requested, it is an AAD approximation and must be labeled with `smooth_barrier`, `barrier_smoothing_width`, and the smoothing convention.
  For mixed mode, use AAD for smooth components and clearly isolate event-state risk as a separate discontinuity or scenario risk rather than misrepresenting it as AAD.
 
 ## Standard FCN workflow
@@ -65,4 +65,8 @@ Explain financial effects using like-for-like comparisons. Global monitoring obs
 
 Treat large or sign-changing barrier gamma as discontinuity/event-state risk, not smooth local curvature. State the model convention for KO settlement, KI redemption, coupon memory, calendars, and fixings. If the report compares vanilla and FCN rows, disclose that the payoff-family change confounds the barrier effect; prefer the bundled apples-to-apples FCN matrix.
 
-Read `references/custom_barrier_financial_analysis.md` when preparing the narrative interpretation. Preserve the generated JSON report as an audit artifact and record the exact seed, path count, step count, valuation date, expiry, barrier levels, observation dates, and AAD/fallback method.
+Read `references/custom_barrier_financial_analysis.md` when preparing the narrative interpretation. Preserve the generated JSON report as an audit artifact and record the exact seed, path count, step count, valuation date, expiry, barrier levels, observation dates, smoothing width if applicable, and AAD/fallback method.
+
+## Sigmoid-smoothed barrier mode
+
+Use `smooth_barrier=true` only when a differentiable approximation is desired for barrier-event Greeks. The engine replaces the hard hit indicator with `1 - product(1 - sigmoid(signed_distance / (width * level)))`, and uses smooth approximations for intrinsic max and KI redemption min. Smaller widths track the hard barrier more closely but can create steep, numerically sensitive Greeks; larger widths improve stability but introduce more PV and risk bias. Run a width-convergence table, for example `0.02`, `0.01`, and `0.005`, and compare against the exact event-state price. Do not use sigmoid smoothing to claim exact barrier prices or exact discontinuity Greeks.

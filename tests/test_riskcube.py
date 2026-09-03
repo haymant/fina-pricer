@@ -123,6 +123,34 @@ def test_svi_aad_emits_skew_and_cross_greeks() -> None:
     assert rho_cell["sensitivities"]["svi_rho"] != 0
 
 
+def test_sigmoid_smoothed_barrier_uses_aad_and_finite_greeks() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["RiskFactorKeys"] = [
+        {"type": "Spot", "underlying": "UND_A HK"},
+        {"type": "Volatility", "underlying": "UND_A HK"},
+    ]
+    case["parameters"] = {
+        **case["parameters"],
+        "payoff_type": "barrier",
+        "accrual": None,
+        "smooth_barrier": True,
+        "barrier_smoothing_width": 0.01,
+        "barriers": [{
+            "direction": "down",
+            "event": "KI",
+            "level": 0.8 * case["UnwindMapRaw"]["underlyings"][0]["strikePrice"],
+            "monitoring": "global",
+            "observation_dates": [],
+            "rebate": 0.0,
+        }],
+    }
+    output = sensitivity(PricingRequest.model_validate(case))
+    assert "sigmoid-smoothed" in output["explainability"]["model"]
+    assert all("sigmoid-smoothed barrier" in cell["method"] for cell in output["RiskCube"]["cells"])
+    for cell in output["RiskCube"]["cells"]:
+        assert all(isfinite(value) for value in cell["sensitivities"].values() if isinstance(value, (int, float)))
+
+
 def test_vercel_asgi_app_is_exported() -> None:
     assert app is not None
     assert hasattr(app, "routes")

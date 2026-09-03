@@ -17,7 +17,7 @@ uv run ruff check .
 uv run mypy src
 ```
 
-The project targets Python 3.12, matching the Vercel Python runtime used by this deployment. `uv` creates and maintains `.venv` and `uv.lock`; do not install project dependencies into the system interpreter.
+The project requires Python 3.11 or newer. `uv` creates and maintains `.venv` and `uv.lock`; do not install project dependencies into the system interpreter.
 
 ## Run as an MCP stdio server
 
@@ -87,7 +87,7 @@ The repository includes `api/index.py`, `vercel.json`, and `[tool.vercel] entryp
 
 ## Verification performed
 
-The current project was tested locally after the AAD and HTTP changes. The regression suite passed with 102 tests, Ruff passed, mypy passed over `src` and `api`, QuantLib 1.43 imported successfully, the first generated sample produced a finite PV and four RiskCube cells, and a real Streamable HTTP `initialize` request returned HTTP 200 with an MCP `text/event-stream` response. The HTTP smoke test also exercised ASGI lifespan startup and shutdown.
+The current project was tested locally after the AAD and HTTP changes. The regression suite passed with 101 tests, Ruff passed, mypy passed over `src` and `api`, QuantLib 1.43 imported successfully, the first generated sample produced a finite PV and four RiskCube cells, and a real Streamable HTTP `initialize` request returned HTTP 200 with an MCP `text/event-stream` response. The HTTP smoke test also exercised ASGI lifespan startup and shutdown.
 
 The attachment-derived fixture is stored at `data/attachment_sample.json`, with its reproducible output in `data/attachment_sample_result.json`. Using 4,000 paths and 48 steps, the tested fixture produced PV `110,666.2384`, Monte Carlo standard error `1,048.0330`, and four RiskCube cells. Because it is an FCN with memory accrual, its cells correctly report the discontinuous-payoff finite-difference method; generated smooth vanilla cases report the reverse-mode AAD method.
 
@@ -109,3 +109,9 @@ Configure `ALLOWED_HOSTS` in Vercel Project Settings. Use a comma-separated list
 The serverless function is intentionally stateless. Send the complete pricing request in each MCP tool call, including market snapshot, lifecycle state, fixings, RFKs, model parameters, path count, and seed. Do not rely on local files or process memory for positions, credentials, or market data. Set a conservative path count and step count for serverless latency, and use a separately hosted pricing worker for large production portfolios.
 
 The deployment package includes `pyproject.toml`, `uv.lock`, `api/index.py`, `src/riskcube_mcp/`, `vercel.json`, and `.vercelignore`. Development tests, probes, and local virtual-environment files are excluded from the Vercel upload.
+
+## SVI skew and cross-Greek AAD
+
+When `parameters.svi` is present on a smooth vanilla request, the engine uses reverse-mode differentiation over the state vector `[spot, a, b, rho, m, sigma, rate, parallel_vol_shift, time]`. The surface follows the raw-SVI total-variance convention `w(k)=a+b*(rho*(k-m)+sqrt((k-m)^2+sigma^2))`, with `k=ln(K/S)`. `skew_sensitivity` is the direct `dPV/d rho` sensitivity; it is not the same as a quoted-volatility slope unless the surface parameterization explicitly maps it to one.
+
+The output adds `svi_a`, `svi_b`, `svi_rho`, `svi_m`, and `svi_sigma`, as well as `delta_vega`, `gamma_vega`, `delta_volga`, `delta_rate`, `gamma_rate`, and surface cross-Greeks such as `spot_svi_rho` and `vol_svi_b`. SVI parameter RFKs use `type="SVIParameter"` and `surface_parameter` equal to `a`, `b`, `rho`, `m`, or `sigma`. Event-state FCNs with barriers or memory remain explicitly finite-difference risks because their KI/KO and coupon state indicators are discontinuous.

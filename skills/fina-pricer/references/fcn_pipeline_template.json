@@ -1,19 +1,27 @@
 {
-  "backend": "xad_quantlib",
+  "backend": "quantlib_risks_xad",
   "aad_only": true,
   "inputs": {
     "InstrumentKey": {},
     "UnwindMapRaw": {"underlyings": []},
-    "RiskFactorKeys": [],
+    "RiskFactorKeys": [
+      {"type": "Spot"},
+      {"type": "Volatility"},
+      {"type": "InterestRate"},
+      {"type": "SVIParameter", "surface_parameter": "b"},
+      {"type": "SVIParameter", "surface_parameter": "rho"}
+    ],
     "MarketDataSnapshot": {"spot_data": [], "vol_data": [], "ir_data": [], "fx_data": []},
     "UpdatedLifecycle": {"instrument_state": "LIVE", "applied_fixings": [], "adjusted_underlyings": []}
   },
   "parameters": {
     "eval_datetime": "YYYY-MM-DD",
     "expiry": "YYYY-MM-DD",
-    "payoff_type": "fcn",
+    "payoff_type": "vanilla",
+    "volatility": 0.25,
+    "svi": {"a": 0.04, "b": 0.12, "rho": -0.35, "m": 0.0, "sigma": 0.20},
     "barriers": [],
-    "accrual": {"coupon_rate": 0.0, "memory": true, "observation_frequency": "monthly", "observations": 12, "pay_if_ki": true},
+    "accrual": null,
     "paths": 100000,
     "steps": 252,
     "seed": 7,
@@ -22,7 +30,7 @@
     "currency_conversion": 1.0
   },
   "risk_output": {
-    "greeks": ["delta", "gamma", "vega", "rho", "theta", "fx_delta", "vanna", "volga", "charm"],
+    "greeks": ["delta", "gamma", "vega", "rho", "theta", "fx_delta", "vanna", "volga", "charm", "skew_sensitivity", "svi_a", "svi_b", "svi_rho", "svi_m", "svi_sigma", "delta_vega", "gamma_vega", "delta_volga", "delta_rate", "gamma_rate"],
     "cube_axes": ["Underlying", "Expiry", "Strike", "RiskFactorType"]
   }
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from math import isfinite
 from pathlib import Path
 
 import pytest
@@ -92,6 +93,34 @@ def test_smooth_vanilla_uses_aad_and_emits_full_greek_vector() -> None:
     assert {"delta", "gamma", "vega", "rho", "theta", "vanna", "volga", "charm"} <= set(
         output["RiskCube"]["cells"][0]["sensitivities"]
     )
+
+
+def test_svi_aad_emits_skew_and_cross_greeks() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["RiskFactorKeys"] = [
+        {"type": "Spot", "underlying": "UND_A HK", "temporal_role": "ValuationDate", "date": "2027-05-18"},
+        {"type": "Volatility", "underlying": "UND_A HK", "expiry": "2028-05-25", "strike": 5.5858},
+        {"type": "InterestRate", "underlying": "USD", "tenor": "5Y", "date": "2027-05-18"},
+        {"type": "SVIParameter", "underlying": "UND_A HK", "expiry": "2028-05-25", "surface_parameter": "rho"},
+        {"type": "SVIParameter", "underlying": "UND_A HK", "expiry": "2028-05-25", "surface_parameter": "b"},
+    ]
+    case["parameters"] = {
+        **case["parameters"],
+        "payoff_type": "vanilla",
+        "accrual": None,
+        "svi": {"a": 0.04, "b": 0.12, "rho": -0.35, "m": 0.0, "sigma": 0.20},
+    }
+    output = sensitivity(PricingRequest.model_validate(case))
+    assert "SVI" in output["explainability"]["model"]
+    assert "reverse-mode SVI" in output["RiskCube"]["cells"][0]["method"]
+    for cell in output["RiskCube"]["cells"]:
+        sensitivities = cell["sensitivities"]
+        assert "skew_sensitivity" in sensitivities
+        assert "delta_vega" in sensitivities
+        assert "gamma_vega" in sensitivities
+        assert all(isfinite(value) for value in sensitivities.values() if isinstance(value, (int, float)))
+    rho_cell = next(cell for cell in output["RiskCube"]["cells"] if cell["rfk"].get("surface_parameter") == "rho")
+    assert rho_cell["sensitivities"]["svi_rho"] != 0
 
 
 def test_vercel_asgi_app_is_exported() -> None:

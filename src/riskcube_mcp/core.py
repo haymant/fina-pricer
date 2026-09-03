@@ -10,6 +10,7 @@ import numpy as np
 from autograd import grad  # type: ignore[import-untyped]
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .svi_backend import svi_aad_greeks
 from .xad_backend import native_xad_vanilla_greeks
 
 
@@ -45,7 +46,7 @@ class UnwindMapRaw(BaseModel):
 
 
 class RiskFactorKey(BaseModel):
-    type: Literal["Spot", "Volatility", "InterestRate", "FXSpot"]
+    type: Literal["Spot", "Volatility", "InterestRate", "FXSpot", "SVIParameter"]
     underlying: str | None = None
     currency_pair: str | None = None
     expiry: str | None = None
@@ -53,6 +54,7 @@ class RiskFactorKey(BaseModel):
     tenor: str | None = None
     temporal_role: str | None = None
     date: str | None = None
+    surface_parameter: Literal["a", "b", "rho", "m", "sigma"] | None = None
 
 
 class MarketPoint(BaseModel):
@@ -95,6 +97,14 @@ class AccrualSpec(BaseModel):
     pay_if_ki: bool = True
 
 
+class SVIParameters(BaseModel):
+    a: float = Field(gt=0)
+    b: float = Field(gt=0)
+    rho: float = Field(gt=-1, lt=1)
+    m: float
+    sigma: float = Field(gt=0)
+
+
 class PricingParameters(BaseModel):
     eval_datetime: str
     expiry: str
@@ -105,6 +115,7 @@ class PricingParameters(BaseModel):
     risk_free_rate: float = 0.03
     dividend_yield: float = 0.0
     volatility: float = Field(default=0.25, gt=0)
+    svi: SVIParameters | None = None
     paths: int = Field(default=20000, ge=1000, le=500000)
     steps: int = Field(default=64, ge=2, le=512)
     seed: int = 7
@@ -394,29 +405,44 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
     base = price_request(request)
     p = request.parameters
     smooth = p.payoff_type == "vanilla" and not p.barriers and p.accrual is None
-    aad = None
+    aad: dict[str, Any] | None = None
     if smooth:
         u = request.unwind_map.underlyings[0]
-        aad = native_xad_vanilla_greeks(
-            u.spot,
-            u.strikePrice,
-            p.volatility,
-            p.risk_free_rate,
-            p.dividend_yield,
-            p.eval_datetime,
-            p.expiry,
-            p.option_type,
-            request.instrument.notional,
-            p.currency_conversion,
-        )
+        if p.svi is not None:
+            aad = svi_aad_greeks(
+                u.spot,
+                u.strikePrice,
+                p.risk_free_rate,
+                p.dividend_yield,
+                (date.fromisoformat(p.expiry) - date.fromisoformat(p.eval_datetime)).days / 365.0,
+                p.option_type,
+                request.instrument.notional,
+                p.currency_conversion,
+                p.svi.model_dump(),
+            )
+            model_name = "SVI implied-volatility surface with reverse-mode AAD"
+        else:
+            aad = native_xad_vanilla_greeks(
+                u.spot,
+                u.strikePrice,
+                p.volatility,
+                p.risk_free_rate,
+                p.dividend_yield,
+                p.eval_datetime,
+                p.expiry,
+                p.option_type,
+                request.instrument.notional,
+                p.currency_conversion,
+            )
+            model_name = "QuantLib-Risks analytic Black-Scholes-Merton"
         base = PriceResult(
             aad["pv"],
             base.stderr,
             {
                 **base.diagnostics,
-                "model": "QuantLib-Risks analytic Black-Scholes-Merton",
+                "model": model_name,
                 "aad_backend": aad["backend"],
-                "xad_version": aad["xad_version"],
+                **({"svi_parameters": p.svi.model_dump(), "svi_convention": aad["svi_convention"]} if p.svi is not None else {"xad_version": aad["xad_version"]}),
             },
         )
     h = p.bump_size
@@ -433,6 +459,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
             "Volatility": p.volatility,
             "InterestRate": p.risk_free_rate,
             "FXSpot": p.currency_conversion,
+            "SVIParameter": getattr(p.svi, rfk.surface_parameter) if p.svi is not None and rfk.surface_parameter else 0.0,
         }[kind]
         bump = h * max(abs(base_val), 1.0) if p.bump_mode == "relative" else h
         key = {
@@ -440,8 +467,11 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
             "Volatility": "vol",
             "InterestRate": "rate",
             "FXSpot": "fx",
+            "SVIParameter": "svi",
         }[kind]
         if aad is not None:
+            parameter = rfk.surface_parameter
+            parameter_value = aad.get(f"svi_{parameter}", 0.0) if kind == "SVIParameter" and parameter else 0.0
             greeks = {
                 "delta": aad["delta"] if kind == "Spot" else 0.0,
                 "gamma": aad["gamma"] if kind == "Spot" else 0.0,
@@ -452,9 +482,18 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 "vanna": aad["vanna"],
                 "volga": aad["volga"],
                 "charm": aad["charm"],
+                "skew_sensitivity": aad.get("skew_sensitivity", 0.0),
+                "svi_a": aad.get("svi_a", 0.0) if parameter == "a" else parameter_value,
+                "svi_b": aad.get("svi_b", 0.0) if parameter == "b" else parameter_value,
+                "svi_rho": aad.get("svi_rho", 0.0) if parameter == "rho" else parameter_value,
+                "svi_m": aad.get("svi_m", 0.0) if parameter == "m" else parameter_value,
+                "svi_sigma": aad.get("svi_sigma", 0.0) if parameter == "sigma" else parameter_value,
+                **aad.get("cross_greeks", {}),
             }
             method = aad["backend"]
         else:
+            if kind == "SVIParameter":
+                raise ValueError("SVIParameter sensitivities require a smooth vanilla payoff with parameters.svi configured")
             if key == "fx":
                 up = base.pv * (base_val + bump) / base_val
                 down = base.pv * (base_val - bump) / base_val
@@ -491,6 +530,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
         "Volatility": "VolCube",
         "InterestRate": "IRCube",
         "FXSpot": "FXCube",
+        "SVIParameter": "SVICube",
     }
     return {
         "PV": base.pv,

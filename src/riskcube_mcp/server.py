@@ -18,6 +18,7 @@ allowed_hosts = [
 ]
 mcp = FastMCP(
     "riskcube-pricing",
+    stateless_http=True,
     transport_security=TransportSecuritySettings(allowed_hosts=allowed_hosts),
 )
 

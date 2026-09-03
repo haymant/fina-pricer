@@ -1,0 +1,11 @@
+{
+  "rewrites": [
+    { "source": "/mcp", "destination": "/api" },
+    { "source": "/mcp/:path*", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60
+    }
+  }
+}

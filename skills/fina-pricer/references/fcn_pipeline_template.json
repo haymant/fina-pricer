@@ -1,0 +1,28 @@
+{
+  "backend": "xad_quantlib",
+  "aad_only": true,
+  "inputs": {
+    "InstrumentKey": {},
+    "UnwindMapRaw": {"underlyings": []},
+    "RiskFactorKeys": [],
+    "MarketDataSnapshot": {"spot_data": [], "vol_data": [], "ir_data": [], "fx_data": []},
+    "UpdatedLifecycle": {"instrument_state": "LIVE", "applied_fixings": [], "adjusted_underlyings": []}
+  },
+  "parameters": {
+    "eval_datetime": "YYYY-MM-DD",
+    "expiry": "YYYY-MM-DD",
+    "payoff_type": "fcn",
+    "barriers": [],
+    "accrual": {"coupon_rate": 0.0, "memory": true, "observation_frequency": "monthly", "observations": 12, "pay_if_ki": true},
+    "paths": 100000,
+    "steps": 252,
+    "seed": 7,
+    "bump_size": 0.0001,
+    "bump_mode": "relative",
+    "currency_conversion": 1.0
+  },
+  "risk_output": {
+    "greeks": ["delta", "gamma", "vega", "rho", "theta", "fx_delta", "vanna", "volga", "charm"],
+    "cube_axes": ["Underlying", "Expiry", "Strike", "RiskFactorType"]
+  }
+}

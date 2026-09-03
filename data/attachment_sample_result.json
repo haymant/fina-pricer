@@ -1,0 +1,202 @@
+{
+  "PV": 110666.2384259005,
+  "PV_stderr": 1048.0329943567342,
+  "explainability": {
+    "model": "risk-neutral GBM Monte Carlo",
+    "paths": 4000,
+    "steps": 48,
+    "time_to_expiry_years": 1.021917808219178,
+    "moneyness": 1.1388162841490923,
+    "spot_state": "OTM",
+    "barrier_events": [],
+    "lifecycle_state": "LIVE",
+    "applied_fixings": [
+      "2027-05-18"
+    ],
+    "coupon_state": {
+      "knock_in": false,
+      "knock_out": false,
+      "coupon_paid": 0.1038525,
+      "memory_carry": 0.016147500000000002
+    }
+  },
+  "SensitivityResults": [
+    {
+      "rfk": {
+        "type": "Spot",
+        "underlying": "UND_A HK",
+        "temporal_role": "ValuationDate",
+        "date": "2027-05-18"
+      },
+      "sensitivities": {
+        "delta": -3290.825737396714,
+        "gamma": 41649975.822304755,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": -12718.736929086372,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+      "bump": 0.00063612
+    },
+    {
+      "rfk": {
+        "type": "Volatility",
+        "underlying": "UND_A HK",
+        "expiry": "2028-05-25",
+        "strike": 5.5858
+      },
+      "sensitivities": {
+        "delta": 0.0,
+        "gamma": 0.0,
+        "vega": 128870.40961475577,
+        "rho": 0.0,
+        "theta": -12718.736929086372,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+      "bump": 0.0001
+    },
+    {
+      "rfk": {
+        "type": "InterestRate",
+        "underlying": "USD",
+        "tenor": "5Y",
+        "date": "2027-05-18"
+      },
+      "sensitivities": {
+        "delta": 0.0,
+        "gamma": 0.0,
+        "vega": 0.0,
+        "rho": -194386.23143774748,
+        "theta": -12718.736929086372,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+      "bump": 0.0001
+    },
+    {
+      "rfk": {
+        "type": "FXSpot",
+        "currency_pair": "USDHKD",
+        "date": "2027-05-18"
+      },
+      "sensitivities": {
+        "delta": 0.0,
+        "gamma": 0.0,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": -12718.736929086372,
+        "fx_delta": 110666.2384259107,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+      "bump": 0.0001
+    }
+  ],
+  "RiskCube": {
+    "cube_type": "SpotCube",
+    "axes": [
+      "Underlying",
+      "Expiry",
+      "Strike",
+      "RiskFactorType"
+    ],
+    "cells": [
+      {
+        "rfk": {
+          "type": "Spot",
+          "underlying": "UND_A HK",
+          "temporal_role": "ValuationDate",
+          "date": "2027-05-18"
+        },
+        "sensitivities": {
+          "delta": -3290.825737396714,
+          "gamma": 41649975.822304755,
+          "vega": 0.0,
+          "rho": 0.0,
+          "theta": -12718.736929086372,
+          "fx_delta": 0.0,
+          "vanna": 0.0,
+          "volga": 0.0,
+          "charm": 0.0
+        },
+        "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+        "bump": 0.00063612
+      },
+      {
+        "rfk": {
+          "type": "Volatility",
+          "underlying": "UND_A HK",
+          "expiry": "2028-05-25",
+          "strike": 5.5858
+        },
+        "sensitivities": {
+          "delta": 0.0,
+          "gamma": 0.0,
+          "vega": 128870.40961475577,
+          "rho": 0.0,
+          "theta": -12718.736929086372,
+          "fx_delta": 0.0,
+          "vanna": 0.0,
+          "volga": 0.0,
+          "charm": 0.0
+        },
+        "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+        "bump": 0.0001
+      },
+      {
+        "rfk": {
+          "type": "InterestRate",
+          "underlying": "USD",
+          "tenor": "5Y",
+          "date": "2027-05-18"
+        },
+        "sensitivities": {
+          "delta": 0.0,
+          "gamma": 0.0,
+          "vega": 0.0,
+          "rho": -194386.23143774748,
+          "theta": -12718.736929086372,
+          "fx_delta": 0.0,
+          "vanna": 0.0,
+          "volga": 0.0,
+          "charm": 0.0
+        },
+        "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+        "bump": 0.0001
+      },
+      {
+        "rfk": {
+          "type": "FXSpot",
+          "currency_pair": "USDHKD",
+          "date": "2027-05-18"
+        },
+        "sensitivities": {
+          "delta": 0.0,
+          "gamma": 0.0,
+          "vega": 0.0,
+          "rho": 0.0,
+          "theta": -12718.736929086372,
+          "fx_delta": 110666.2384259107,
+          "vanna": 0.0,
+          "volga": 0.0,
+          "charm": 0.0
+        },
+        "method": "common-random-number finite-difference (discontinuous payoff fallback)",
+        "bump": 0.0001
+      }
+    ]
+  }
+}

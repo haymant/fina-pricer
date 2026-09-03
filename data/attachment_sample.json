@@ -1,0 +1,63 @@
+{
+  "InstrumentKey": {
+    "isin": "XS9999999999",
+    "name": "FCN_SAMPLE_001",
+    "strategy_id": "STRATEGY_FCN_001",
+    "product_type": "FCN",
+    "family": "EQD",
+    "group": "OPT",
+    "leg_id": 1,
+    "leg_name": "PUT",
+    "notional": 770000.0,
+    "payment_currency": "USD",
+    "status": "LIVE"
+  },
+  "UnwindMapRaw": {
+    "underlyings": [
+      {
+        "name": "UND_A HK",
+        "currency": "HKD",
+        "spot": 6.3612,
+        "strikePrice": 5.5858,
+        "barrierPrice": 6.3612,
+        "fx_pair": "USDHKD",
+        "calendar": "EXCH HKG",
+        "time": "1600",
+        "time_zone": "Hong Kong"
+      }
+    ]
+  },
+  "RiskFactorKeys": [
+    {"type": "Spot", "underlying": "UND_A HK", "temporal_role": "ValuationDate", "date": "2027-05-18"},
+    {"type": "Volatility", "underlying": "UND_A HK", "expiry": "2028-05-25", "strike": 5.5858},
+    {"type": "InterestRate", "underlying": "USD", "tenor": "5Y", "date": "2027-05-18"},
+    {"type": "FXSpot", "currency_pair": "USDHKD", "date": "2027-05-18"}
+  ],
+  "MarketDataSnapshot": {
+    "spot_data": [{"rfk": {"underlying": "UND_A HK"}, "value": 6.3612}],
+    "vol_data": [{"rfk": {"underlying": "UND_A HK", "expiry": "2028-05-25", "strike": 5.5858}, "value": 0.25}],
+    "ir_data": [{"rfk": {"currency": "USD", "tenor": "5Y"}, "value": 0.03}],
+    "fx_data": [{"rfk": {"currency_pair": "USDHKD"}, "value": 7.8}]
+  },
+  "UpdatedLifecycle": {
+    "instrument_state": "LIVE",
+    "applied_fixings": ["2027-05-18"],
+    "adjusted_underlyings": [{"name": "UND_A HK", "adjustment_factor": 1.0}]
+  },
+  "parameters": {
+    "eval_datetime": "2027-05-18",
+    "expiry": "2028-05-25",
+    "option_type": "put",
+    "payoff_type": "fcn",
+    "accrual": {"coupon_rate": 0.12, "memory": true, "observation_frequency": "monthly", "observations": 12, "pay_if_ki": true},
+    "risk_free_rate": 0.03,
+    "dividend_yield": 0.0,
+    "volatility": 0.25,
+    "paths": 4000,
+    "steps": 48,
+    "seed": 42,
+    "bump_size": 0.0001,
+    "bump_mode": "relative",
+    "currency_conversion": 1.0
+  }
+}

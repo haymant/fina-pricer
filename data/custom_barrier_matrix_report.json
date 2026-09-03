@@ -1,0 +1,1858 @@
+{
+  "cases": [
+    {
+      "case_id": "OTM_none_memory_False",
+      "moneyness": "OTM",
+      "barrier": "none",
+      "memory": false,
+      "pv": 768062.3163316002,
+      "spot_greeks": {
+        "delta": 20424.48592048237,
+        "gamma": 7386871.658442027,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 18272.54671933828,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_global_memory_False",
+      "moneyness": "OTM",
+      "barrier": "up_KO_global",
+      "memory": false,
+      "pv": 755061.3660236793,
+      "spot_greeks": {
+        "delta": 7427.085789371575,
+        "gamma": 29547486.640216958,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 26060.107419959968,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.2235
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_local_mid_memory_False",
+      "moneyness": "OTM",
+      "barrier": "up_KO_local_mid",
+      "memory": false,
+      "pv": 766779.7699700921,
+      "spot_greeks": {
+        "delta": 3713.5428945700023,
+        "gamma": -59094973.27951265,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 18234.06874727516,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.0175
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_local_expiry_memory_False",
+      "moneyness": "OTM",
+      "barrier": "up_KO_local_expiry",
+      "memory": false,
+      "pv": 760396.9082379293,
+      "spot_greeks": {
+        "delta": 7427.085789371575,
+        "gamma": 29547486.640216958,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 27583.11447107233,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.13
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_down_KI_global_memory_False",
+      "moneyness": "OTM",
+      "barrier": "down_KI_global",
+      "memory": false,
+      "pv": 672573.8311145805,
+      "spot_greeks": {
+        "delta": 116600.80858097665,
+        "gamma": -140404864.37466955,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 38933.73881486419,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.592
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_down_KI_local_mid_memory_False",
+      "moneyness": "OTM",
+      "barrier": "down_KI_local_mid",
+      "memory": false,
+      "pv": 730786.1054662031,
+      "spot_greeks": {
+        "delta": 39375.764881850155,
+        "gamma": 7386871.6602845555,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 26871.153979212977,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.19525
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.0285375,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_none_memory_True",
+      "moneyness": "OTM",
+      "barrier": "none",
+      "memory": true,
+      "pv": 789161.7908261609,
+      "spot_greeks": {
+        "delta": 53846.371972307104,
+        "gamma": -22160614.9799324,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 12772.35303885187,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_global_memory_True",
+      "moneyness": "OTM",
+      "barrier": "up_KO_global",
+      "memory": true,
+      "pv": 769496.079949705,
+      "spot_greeks": {
+        "delta": 31565.11460430816,
+        "gamma": 66481844.939336576,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 28537.56794410583,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.2235
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_local_mid_memory_True",
+      "moneyness": "OTM",
+      "barrier": "up_KO_local_mid",
+      "memory": true,
+      "pv": 787657.0857790351,
+      "spot_greeks": {
+        "delta": 31565.114604539733,
+        "gamma": -110803074.89920138,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 12727.210032245493,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.0175
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_up_KO_local_expiry_memory_True",
+      "moneyness": "OTM",
+      "barrier": "up_KO_local_expiry",
+      "memory": true,
+      "pv": 777512.4614290578,
+      "spot_greeks": {
+        "delta": 31565.11460430816,
+        "gamma": 66481844.939336576,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 28778.069272020366,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.13
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_down_KI_global_memory_True",
+      "moneyness": "OTM",
+      "barrier": "down_KI_global",
+      "memory": true,
+      "pv": 693673.3056091414,
+      "spot_greeks": {
+        "delta": 150022.69463291715,
+        "gamma": -169952351.01442587,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 33433.5451342928,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.592
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "OTM_down_KI_local_mid_memory_True",
+      "moneyness": "OTM",
+      "barrier": "down_KI_local_mid",
+      "memory": true,
+      "pv": 751885.5799607639,
+      "spot_greeks": {
+        "delta": 72797.65093379068,
+        "gamma": -22160614.97947177,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 21370.960298684076,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 0.9,
+        "spot_state": "ITM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.19525
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.05679249999999999,
+          "memory_carry": 0.06320749999999999
+        }
+      }
+    },
+    {
+      "case_id": "ATM_none_memory_False",
+      "moneyness": "ATM",
+      "barrier": "none",
+      "memory": false,
+      "pv": 791148.1508387439,
+      "spot_greeks": {
+        "delta": 65172.67780074561,
+        "gamma": 29916830.223033115,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 23735.4199399997,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_global_memory_False",
+      "moneyness": "ATM",
+      "barrier": "up_KO_global",
+      "memory": false,
+      "pv": 760988.70910634,
+      "spot_greeks": {
+        "delta": 23395.320236312047,
+        "gamma": 35900196.26711738,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 36459.941568834474,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.41275
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_local_mid_memory_False",
+      "moneyness": "ATM",
+      "barrier": "up_KO_local_mid",
+      "memory": false,
+      "pv": 783891.5894017984,
+      "spot_greeks": {
+        "delta": 28408.603143981552,
+        "gamma": 5983366.04483049,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 29650.918079299736,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.088
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_local_expiry_memory_False",
+      "moneyness": "ATM",
+      "barrier": "up_KO_local_expiry",
+      "memory": false,
+      "pv": 773235.4400109868,
+      "spot_greeks": {
+        "delta": 53475.01768274589,
+        "gamma": 35900196.26786361,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 39553.22700806428,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.23625
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_down_KI_global_memory_False",
+      "moneyness": "ATM",
+      "barrier": "down_KI_global",
+      "memory": false,
+      "pv": 736991.6881307109,
+      "spot_greeks": {
+        "delta": 97020.70053312228,
+        "gamma": 29916830.222660005,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 44435.01472680655,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.335
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_down_KI_local_mid_memory_False",
+      "moneyness": "ATM",
+      "barrier": "down_KI_local_mid",
+      "memory": false,
+      "pv": 781934.9787518055,
+      "spot_greeks": {
+        "delta": 69639.49126094383,
+        "gamma": 29916830.223033115,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 27092.494863978936,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.05125
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.0594525,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_none_memory_True",
+      "moneyness": "ATM",
+      "barrier": "none",
+      "memory": true,
+      "pv": 808099.4186152978,
+      "spot_greeks": {
+        "delta": 25066.414538660138,
+        "gamma": -5983366.044084266,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 24243.9788727212,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_global_memory_True",
+      "moneyness": "ATM",
+      "barrier": "up_KO_global",
+      "memory": true,
+      "pv": 772259.0619220949,
+      "spot_greeks": {
+        "delta": -10026.56581554742,
+        "gamma": 23933464.178575736,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 45657.13839069707,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.41275
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_local_mid_memory_True",
+      "moneyness": "ATM",
+      "barrier": "up_KO_local_mid",
+      "memory": true,
+      "pv": 800458.2799578711,
+      "spot_greeks": {
+        "delta": -15039.848723216923,
+        "gamma": -5983366.044457378,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 32192.340530935326,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.088
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_up_KO_local_expiry_memory_True",
+      "moneyness": "ATM",
+      "barrier": "up_KO_local_expiry",
+      "memory": true,
+      "pv": 786929.0026917162,
+      "spot_greeks": {
+        "delta": 25066.414538764344,
+        "gamma": -5983366.044457378,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 39964.050771411275,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.23625
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_down_KI_global_memory_True",
+      "moneyness": "ATM",
+      "barrier": "down_KI_global",
+      "memory": true,
+      "pv": 753942.9559072647,
+      "spot_greeks": {
+        "delta": 56914.43727124521,
+        "gamma": -5983366.044457378,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 44943.57365957054,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.335
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ATM_down_KI_local_mid_memory_True",
+      "moneyness": "ATM",
+      "barrier": "down_KI_local_mid",
+      "memory": true,
+      "pv": 798886.2465283594,
+      "spot_greeks": {
+        "delta": 29533.227998858358,
+        "gamma": -5983366.044084266,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 27601.053796657943,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.0,
+        "spot_state": "ATM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.05125
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.08215249999999999,
+          "memory_carry": 0.0378475
+        }
+      }
+    },
+    {
+      "case_id": "ITM_none_memory_False",
+      "moneyness": "ITM",
+      "barrier": "none",
+      "memory": false,
+      "pv": 819528.4562064942,
+      "spot_greeks": {
+        "delta": 15984.380285504283,
+        "gamma": 4524284.343070815,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 30720.068020519102,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_global_memory_False",
+      "moneyness": "ITM",
+      "barrier": "up_KO_global",
+      "memory": false,
+      "pv": 754346.3510943376,
+      "spot_greeks": {
+        "delta": -33421.886051764326,
+        "gamma": 49767127.78139639,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 32171.860019669984,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.80975
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_local_mid_memory_False",
+      "moneyness": "ITM",
+      "barrier": "up_KO_local_mid",
+      "memory": false,
+      "pv": 787324.7811904638,
+      "spot_greeks": {
+        "delta": -90093.77979127127,
+        "gamma": 0.0005642527633516282,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 37250.056201398256,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.374
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_local_expiry_memory_False",
+      "moneyness": "ITM",
+      "barrier": "up_KO_local_expiry",
+      "memory": false,
+      "pv": 782017.2421718797,
+      "spot_greeks": {
+        "delta": -18890.63124665334,
+        "gamma": 4524284.344199321,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 37090.82348708529,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.42675
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_down_KI_global_memory_False",
+      "moneyness": "ITM",
+      "barrier": "down_KI_global",
+      "memory": false,
+      "pv": 798330.2715535322,
+      "spot_greeks": {
+        "delta": 52794.213860125026,
+        "gamma": -76381071.53489478,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 54143.71969930071,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.1265
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_down_KI_local_mid_memory_False",
+      "moneyness": "ITM",
+      "barrier": "down_KI_local_mid",
+      "memory": false,
+      "pv": 818767.2032056762,
+      "spot_greeks": {
+        "delta": 16272.747931246033,
+        "gamma": 4524284.343635068,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 31118.745429288247,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.0035
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.09745749999999999,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_none_memory_True",
+      "moneyness": "ITM",
+      "barrier": "none",
+      "memory": true,
+      "pv": 825097.3583846285,
+      "spot_greeks": {
+        "delta": 11625.003844052542,
+        "gamma": 18097137.374540273,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 34975.944571205764,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": false,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_global_memory_True",
+      "moneyness": "ITM",
+      "barrier": "up_KO_global",
+      "memory": true,
+      "pv": 756978.6514869523,
+      "spot_greeks": {
+        "delta": -42140.63893466781,
+        "gamma": 67864265.15593666,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 35658.167792969034,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.80975
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_local_mid_memory_True",
+      "moneyness": "ITM",
+      "barrier": "up_KO_local_mid",
+      "memory": true,
+      "pv": 792510.973027828,
+      "spot_greeks": {
+        "delta": -93000.03075242034,
+        "gamma": 18097137.374540273,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 42175.918073258945,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.374
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_up_KO_local_expiry_memory_True",
+      "moneyness": "ITM",
+      "barrier": "up_KO_local_expiry",
+      "memory": true,
+      "pv": 786856.1943829842,
+      "spot_greeks": {
+        "delta": -23250.007688195696,
+        "gamma": 18097137.3748224,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 42006.26774208911,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KO",
+            "direction": "up",
+            "level": 6.70296,
+            "monitoring": "local",
+            "observation_dates": [
+              "2028-05-25"
+            ],
+            "hit_probability": 0.42675
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": false,
+          "knock_out": true,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_down_KI_global_memory_True",
+      "moneyness": "ITM",
+      "barrier": "down_KI_global",
+      "memory": true,
+      "pv": 803899.1737316665,
+      "spot_greeks": {
+        "delta": 48434.83741858267,
+        "gamma": -62808218.503707446,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 58399.59625002986,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "global",
+            "observation_dates": [],
+            "hit_probability": 0.1265
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    },
+    {
+      "case_id": "ITM_down_KI_local_mid_memory_True",
+      "moneyness": "ITM",
+      "barrier": "down_KI_local_mid",
+      "memory": true,
+      "pv": 824336.1053838105,
+      "spot_greeks": {
+        "delta": 11913.371489703677,
+        "gamma": 18097137.37538665,
+        "vega": 0.0,
+        "rho": 0.0,
+        "theta": 35374.6219800174,
+        "fx_delta": 0.0,
+        "vanna": 0.0,
+        "volga": 0.0,
+        "charm": 0.0
+      },
+      "methods": [
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)",
+        "common-random-number finite-difference (discontinuous payoff fallback)"
+      ],
+      "explainability": {
+        "model": "risk-neutral GBM Monte Carlo",
+        "paths": 4000,
+        "steps": 48,
+        "time_to_expiry_years": 1.021917808219178,
+        "moneyness": 1.15,
+        "spot_state": "OTM",
+        "barrier_events": [
+          {
+            "event": "KI",
+            "direction": "down",
+            "level": 4.46864,
+            "monitoring": "local",
+            "observation_dates": [
+              "2027-09-03"
+            ],
+            "hit_probability": 0.0035
+          }
+        ],
+        "lifecycle_state": "LIVE",
+        "applied_fixings": [
+          "2027-05-18"
+        ],
+        "coupon_state": {
+          "knock_in": true,
+          "knock_out": false,
+          "coupon_paid": 0.10491499999999997,
+          "memory_carry": 0.015085000000000001
+        }
+      }
+    }
+  ]
+}

@@ -552,6 +552,23 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 "bump": bump,
             }
         )
+    notional = request.instrument.notional
+    price_pct = base.pv / notional * 100.0
+    stderr_pct = base.stderr / notional * 100.0
+    valuation = {
+        "pv_amount": base.pv,
+        "pv_currency": request.instrument.payment_currency,
+        "price_pct_of_notional": price_pct,
+        "price_convention": "100.0 means par; price_pct_of_notional = pv_amount / notional * 100",
+        "notional": notional,
+        "notional_currency": request.instrument.payment_currency,
+        "pv_stderr_amount": base.stderr,
+        "pv_stderr_pct_of_notional": stderr_pct,
+    }
+    for cell in cells:
+        cell["pv_amount"] = base.pv
+        cell["price_pct_of_notional"] = price_pct
+
     cube_types = {
         "Spot": "SpotCube",
         "Volatility": "VolCube",
@@ -562,11 +579,19 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
     return {
         "PV": base.pv,
         "PV_stderr": base.stderr,
+        "PV_amount": base.pv,
+        "PV_currency": request.instrument.payment_currency,
+        "price_pct_of_notional": price_pct,
+        "price_convention": valuation["price_convention"],
+        "notional": notional,
+        "notional_currency": request.instrument.payment_currency,
+        "PV_stderr_pct_of_notional": stderr_pct,
         "explainability": base.diagnostics,
         "SensitivityResults": cells,
         "RiskCube": {
             "cube_type": cube_types.get(request.risk_factor_keys[0].type, "RiskCube"),
             "axes": ["Underlying", "Expiry", "Strike", "RiskFactorType"],
+            "valuation": valuation,
             "cells": cells,
         },
     }

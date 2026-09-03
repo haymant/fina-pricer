@@ -1,1 +1,49 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"RiskCube","type":"object","required":["cube_type","axes","cells"],"properties":{"cube_type":{"type":"string","enum":["SpotCube","VolCube","IRCube","FXCube","SVICube","RiskCube"]},"axes":{"type":"array","items":{"type":"string"}},"cells":{"type":"array","items":{"type":"object","required":["rfk","sensitivities","method"],"properties":{"rfk":{"type":"object"},"sensitivities":{"type":"object","required":["delta","gamma","vega","rho","theta"],"properties":{"delta":{"type":"number"},"gamma":{"type":"number"},"vega":{"type":"number"},"rho":{"type":"number"},"theta":{"type":"number"},"fx_delta":{"type":"number"},"vanna":{"type":"number"},"volga":{"type":"number"},"charm":{"type":"number"},"skew_sensitivity":{"type":"number"},"svi_a":{"type":"number"},"svi_b":{"type":"number"},"svi_rho":{"type":"number"},"svi_m":{"type":"number"},"svi_sigma":{"type":"number"},"delta_vega":{"type":"number"},"gamma_vega":{"type":"number"},"delta_volga":{"type":"number"},"delta_rate":{"type":"number"},"gamma_rate":{"type":"number"},"spot_vol":{"type":"number"},"spot_rate":{"type":"number"},"spot_svi_b":{"type":"number"},"spot_svi_rho":{"type":"number"},"spot_svi_m":{"type":"number"},"spot_svi_sigma":{"type":"number"},"vol_rate":{"type":"number"},"vol_svi_b":{"type":"number"},"vol_svi_rho":{"type":"number"},"vol_svi_m":{"type":"number"},"vol_svi_sigma":{"type":"number"}},"additionalProperties":true},"method":{"type":"string"},"bump":{"type":"number"}},"additionalProperties":true}}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiskCube",
+  "type": "object",
+  "required": ["cube_type", "axes", "cells"],
+  "properties": {
+    "cube_type": {"type": "string", "enum": ["SpotCube", "VolCube", "IRCube", "FXCube", "SVICube", "RiskCube"]},
+    "axes": {"type": "array", "items": {"type": "string"}},
+    "valuation": {
+      "type": "object",
+      "required": ["pv_amount", "pv_currency", "price_pct_of_notional", "notional", "notional_currency"],
+      "properties": {
+        "pv_amount": {"type": "number"},
+        "pv_currency": {"type": "string"},
+        "price_pct_of_notional": {"type": "number"},
+        "price_convention": {"type": "string"},
+        "notional": {"type": "number", "exclusiveMinimum": 0},
+        "notional_currency": {"type": "string"},
+        "pv_stderr_amount": {"type": "number", "minimum": 0},
+        "pv_stderr_pct_of_notional": {"type": "number", "minimum": 0}
+      },
+      "additionalProperties": true
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["rfk", "sensitivities", "method"],
+        "properties": {
+          "rfk": {"type": "object"},
+          "pv_amount": {"type": "number"},
+          "price_pct_of_notional": {"type": "number"},
+          "sensitivities": {
+            "type": "object",
+            "required": ["delta", "gamma", "vega", "rho", "theta"],
+            "properties": {
+              "delta": {"type": "number"}, "gamma": {"type": "number"}, "vega": {"type": "number"}, "rho": {"type": "number"}, "theta": {"type": "number"}, "fx_delta": {"type": "number"}, "vanna": {"type": "number"}, "volga": {"type": "number"}, "charm": {"type": "number"}, "skew_sensitivity": {"type": "number"}, "svi_a": {"type": "number"}, "svi_b": {"type": "number"}, "svi_rho": {"type": "number"}, "svi_m": {"type": "number"}, "svi_sigma": {"type": "number"}, "delta_vega": {"type": "number"}, "gamma_vega": {"type": "number"}, "delta_volga": {"type": "number"}, "delta_rate": {"type": "number"}, "gamma_rate": {"type": "number"}, "spot_vol": {"type": "number"}, "spot_rate": {"type": "number"}, "spot_svi_b": {"type": "number"}, "spot_svi_rho": {"type": "number"}, "spot_svi_m": {"type": "number"}, "spot_svi_sigma": {"type": "number"}, "vol_rate": {"type": "number"}, "vol_svi_b": {"type": "number"}, "vol_svi_rho": {"type": "number"}, "vol_svi_m": {"type": "number"}, "vol_svi_sigma": {"type": "number"}
+            },
+            "additionalProperties": true
+          },
+          "method": {"type": "string"},
+          "bump": {"type": "number"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

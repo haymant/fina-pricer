@@ -17,7 +17,7 @@ uv run ruff check .
 uv run mypy src
 ```
 
-The project requires Python 3.11 or newer. `uv` creates and maintains `.venv` and `uv.lock`; do not install project dependencies into the system interpreter.
+The project targets Python 3.12, matching the Vercel Python runtime used by this deployment. `uv` creates and maintains `.venv` and `uv.lock`; do not install project dependencies into the system interpreter.
 
 ## Run as an MCP stdio server
 
@@ -87,7 +87,7 @@ The repository includes `api/index.py`, `vercel.json`, and `[tool.vercel] entryp
 
 ## Verification performed
 
-The current project was tested locally after the AAD and HTTP changes. The regression suite passed with 101 tests, Ruff passed, mypy passed over `src` and `api`, QuantLib 1.43 imported successfully, the first generated sample produced a finite PV and four RiskCube cells, and a real Streamable HTTP `initialize` request returned HTTP 200 with an MCP `text/event-stream` response. The HTTP smoke test also exercised ASGI lifespan startup and shutdown.
+The current project was tested locally after the AAD and HTTP changes. The regression suite passed with 102 tests, Ruff passed, mypy passed over `src` and `api`, QuantLib 1.43 imported successfully, the first generated sample produced a finite PV and four RiskCube cells, and a real Streamable HTTP `initialize` request returned HTTP 200 with an MCP `text/event-stream` response. The HTTP smoke test also exercised ASGI lifespan startup and shutdown.
 
 The attachment-derived fixture is stored at `data/attachment_sample.json`, with its reproducible output in `data/attachment_sample_result.json`. Using 4,000 paths and 48 steps, the tested fixture produced PV `110,666.2384`, Monte Carlo standard error `1,048.0330`, and four RiskCube cells. Because it is an FCN with memory accrual, its cells correctly report the discontinuous-payoff finite-difference method; generated smooth vanilla cases report the reverse-mode AAD method.
 

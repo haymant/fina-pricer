@@ -3,7 +3,7 @@ name = "riskcube-mcp"
 version = "0.1.0"
 description = "Explainable RiskCube pricing MCP server for structured equity-linked products"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "autograd>=1.7,<2",
     "mcp>=1.6,<2",

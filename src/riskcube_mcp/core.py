@@ -105,6 +105,33 @@ class AccrualSpec(BaseModel):
     observation_frequency: Literal["daily", "weekly", "monthly"] = "monthly"
     observations: int = Field(default=12, ge=1)
     pay_if_ki: bool = True
+    n1: list[int] = Field(default_factory=list, min_length=0)
+    n2: list[int] = Field(default_factory=list, min_length=0)
+    fixed_n1_periods: int | None = Field(default=None, ge=0)
+    period_coupon_rates: list[float] = Field(default_factory=list, min_length=0)
+    range_lower: float | None = Field(default=None, gt=0)
+    range_upper: float | None = Field(default=None, gt=0)
+    range_level_type: Literal["absolute", "relative_initial"] = "relative_initial"
+
+    @model_validator(mode="after")
+    def validate_coupon_schedule(self) -> AccrualSpec:
+        if bool(self.n1) != bool(self.n2):
+            raise ValueError("n1 and n2 must be supplied together")
+        if self.n1 and len(self.n1) != self.observations:
+            raise ValueError("n1 must contain one value per coupon observation")
+        if self.n2 and len(self.n2) != self.observations:
+            raise ValueError("n2 must contain one value per coupon observation")
+        if self.period_coupon_rates and len(self.period_coupon_rates) != self.observations:
+            raise ValueError("period_coupon_rates must contain one value per coupon observation")
+        if self.n1 and self.n2 and any(a > b for a, b in zip(self.n1, self.n2)):
+            raise ValueError("each n1 must be less than or equal to n2")
+        if self.fixed_n1_periods is not None and self.fixed_n1_periods > self.observations:
+            raise ValueError("fixed_n1_periods cannot exceed observations")
+        if (self.range_lower is None) != (self.range_upper is None):
+            raise ValueError("range_lower and range_upper must be supplied together")
+        if self.range_lower is not None and self.range_upper is not None and self.range_lower >= self.range_upper:
+            raise ValueError("range_lower must be less than range_upper")
+        return self
 
 
 class SVIParameters(BaseModel):
@@ -403,8 +430,35 @@ def price_request(
         accrual = p.accrual
         obs_idx = np.linspace(1, p.steps, accrual.observations, dtype=int)
         memory = np.zeros(p.paths)
-        coupon = np.full(p.paths, accrual.coupon_rate / accrual.observations)
-        for idx in obs_idx:
+        scheduled_n1 = accrual.n1
+        scheduled_n2 = accrual.n2
+        fixed_periods = accrual.fixed_n1_periods
+        if scheduled_n1 and fixed_periods is None:
+            fixed_periods = accrual.observations
+        if fixed_periods is None:
+            fixed_periods = 0
+        period_n1: list[np.ndarray] = []
+        period_n2 = scheduled_n2 or [1] * accrual.observations
+        if scheduled_n2:
+            for period, (start_idx, end_idx) in enumerate(zip(np.r_[0, obs_idx[:-1]], obs_idx)):
+                if period < fixed_periods:
+                    period_n1.append(np.full(p.paths, scheduled_n1[period], dtype=float))
+                    continue
+                if accrual.range_lower is None or accrual.range_upper is None:
+                    raise ValueError("future stochastic coupon periods require range_lower and range_upper")
+                lower = accrual.range_lower
+                upper = accrual.range_upper
+                if accrual.range_level_type == "relative_initial":
+                    lower = lower * spots[0]
+                    upper = upper * spots[0]
+                observed = asset_paths[:, start_idx + 1 : end_idx + 1, 0]
+                in_range_fraction = np.mean((observed >= lower) & (observed <= upper), axis=1)
+                period_n1.append(in_range_fraction * period_n2[period])
+        else:
+            period_n1 = [np.full(p.paths, period_n2[period], dtype=float) for period in range(accrual.observations)]
+        for period, idx in enumerate(obs_idx):
+            coupon_rate = accrual.period_coupon_rates[period] if accrual.period_coupon_rates else accrual.coupon_rate / accrual.observations
+            coupon = coupon_rate * period_n1[period] / max(period_n2[period], 1)
             eligible = basket_ratios[:, idx] >= 1.0
             paid = np.where(eligible, coupon + (memory if accrual.memory else 0.0), 0.0)
             if not accrual.pay_if_ki:
@@ -413,6 +467,15 @@ def price_request(
             coupon_paid_path += paid
         state["coupon_paid"] = float(np.mean(coupon_paid_path))
         state["memory_carry"] = float(np.mean(memory))
+        state["coupon_schedule"] = {
+            "n1": scheduled_n1,
+            "n2": scheduled_n2,
+            "fixed_n1_periods": fixed_periods,
+            "future_n1_stochastic": bool(scheduled_n2 and fixed_periods < accrual.observations),
+            "range_lower": accrual.range_lower,
+            "range_upper": accrual.range_upper,
+            "range_level_type": accrual.range_level_type,
+        }
         coupon_payoff = coupon_paid_path * default_notional
     if p.payoff_type == "fcn":
         funding_payoff = np.full(p.paths, default_notional)

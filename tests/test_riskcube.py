@@ -255,3 +255,33 @@ def test_leg_definition_rejects_duplicate_types() -> None:
     ]
     with pytest.raises(ValueError, match="leg type"):
         PricingRequest.model_validate(case)
+
+
+def test_future_coupon_uses_stochastic_n1_over_n2() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["parameters"] = {
+        **case["parameters"],
+        "payoff_type": "fcn",
+        "accrual": {
+            "coupon_rate": 0.04,
+            "memory": True,
+            "observations": 4,
+            "period_coupon_rates": [0.01, 0.01, 0.01, 0.01],
+            "n1": [20, 20, 20, 20],
+            "n2": [20, 20, 20, 20],
+            "fixed_n1_periods": 3,
+            "range_lower": 0.99,
+            "range_upper": 1.01,
+            "range_level_type": "relative_initial",
+        },
+    }
+    stochastic = sensitivity(PricingRequest.model_validate(case))
+    schedule = stochastic["explainability"]["coupon_state"]["coupon_schedule"]
+    assert schedule["future_n1_stochastic"] is True
+    assert schedule["fixed_n1_periods"] == 3
+    assert schedule["n2"] == [20, 20, 20, 20]
+
+    full_case = json.loads(json.dumps(case))
+    full_case["parameters"]["accrual"]["fixed_n1_periods"] = 4
+    full = sensitivity(PricingRequest.model_validate(full_case))
+    assert stochastic["LegResults"]["coupon"]["pv_amount"] <= full["LegResults"]["coupon"]["pv_amount"]

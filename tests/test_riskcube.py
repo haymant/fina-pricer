@@ -160,6 +160,7 @@ def test_aapl_tsla_worst_of_basket_has_per_underlying_risk() -> None:
     request = PricingRequest.model_validate(json.loads((ROOT / "data" / "basket_aapl_tsla.json").read_text()))
     output = sensitivity(request)
     assert output["explainability"]["underlyings"] == ["AAPL US", "TSLA US"]
+    assert {u.strikePrice for u in request.unwind_map.underlyings} == {200.0, 220.0}
     assert output["explainability"]["basket_method"] == "worst_of"
     assert output["price_pct_of_notional"] == pytest.approx(output["PV"] / output["notional"] * 100.0)
     spot_cells = [c for c in output["RiskCube"]["cells"] if c["rfk"]["type"] == "Spot"]

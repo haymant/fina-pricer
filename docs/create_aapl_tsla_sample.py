@@ -7,7 +7,7 @@ base['InstrumentKey']['name'] = 'AAPL_TSLA_WORST_OF_FCN'
 base['InstrumentKey']['isin'] = 'US_AAPL_TSLA_FCN'
 base['UnwindMapRaw']['underlyings'] = [
     {**base['UnwindMapRaw']['underlyings'][0], 'name': 'AAPL US', 'spot': 200.0, 'strikePrice': 200.0, 'barrierPrice': 0.8, 'barriers': [{'direction': 'down', 'event': 'KI', 'level': 0.80, 'level_type': 'relative_initial', 'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0}]},
-    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'TSLA US', 'spot': 250.0, 'strikePrice': 200.0, 'barrierPrice': 0.8, 'barriers': [{'direction': 'down', 'event': 'KI', 'level': 0.70, 'level_type': 'relative_initial', 'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0}]},
+    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'TSLA US', 'spot': 250.0, 'strikePrice': 220.0, 'barrierPrice': 0.8, 'barriers': [{'direction': 'down', 'event': 'KI', 'level': 0.70, 'level_type': 'relative_initial', 'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0}]},
 ]
 base['RiskFactorKeys'] = [
     {'type': 'Spot', 'underlying': 'AAPL US'},

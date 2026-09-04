@@ -51,9 +51,6 @@ class UnwindMapRaw(BaseModel):
         names = [u.name for u in self.underlyings]
         if len(names) != len(set(names)):
             raise ValueError("basket underlying names must be unique")
-        strikes = {u.strikePrice for u in self.underlyings}
-        if len(strikes) != 1:
-            raise ValueError("all basket underlyings must currently share one strikePrice")
         return self
 
 
@@ -288,7 +285,7 @@ def price_request(
         raise ValueError("at most three underlyings are supported")
     overrides = overrides or {}
     spots = np.array([_spot_for(request, u, overrides) for u in underlyings], dtype=float)
-    strike = underlyings[0].strikePrice
+    strikes = np.array([u.strikePrice for u in underlyings], dtype=float)
     rng = np.random.default_rng(p.seed)
     t = (date.fromisoformat(p.expiry) - date.fromisoformat(p.eval_datetime)).days / 365.0
     dt = t / p.steps
@@ -300,18 +297,19 @@ def price_request(
     asset_paths = spots[None, None, :] * np.exp(np.cumsum(increments, axis=1))
     asset_paths = np.concatenate([np.broadcast_to(spots, (p.paths, 1, n)), asset_paths], axis=1)
     performance = asset_paths / spots[None, None, :]
+    normalized_levels = asset_paths / strikes[None, None, :]
     basket_paths = np.min(performance, axis=2) if p.basket_method == "worst_of" else np.max(performance, axis=2)
-    basket_levels = np.min(asset_paths, axis=2) if p.basket_method == "worst_of" else np.max(asset_paths, axis=2)
-    terminal = basket_levels[:, -1]
-    intrinsic = np.maximum(terminal - strike, 0.0) if p.option_type == "call" else np.maximum(strike - terminal, 0.0)
-    payoff = intrinsic.copy()
+    basket_ratios = np.min(normalized_levels, axis=2) if p.basket_method == "worst_of" else np.max(normalized_levels, axis=2)
+    terminal_ratio = basket_ratios[:, -1]
+    intrinsic_ratio = np.maximum(terminal_ratio - 1.0, 0.0) if p.option_type == "call" else np.maximum(1.0 - terminal_ratio, 0.0)
+    payoff = intrinsic_ratio * request.instrument.notional
     state: dict[str, Any] = {"knock_in": False, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
     knock_in_mask = np.zeros(p.paths, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
     barrier_events: list[dict[str, Any]] = []
     coupon_paid_path = np.zeros(p.paths)
     barriers = [b if isinstance(b, BarrierSpec) else BarrierSpec.model_validate(b) for b in p.barriers]
-    barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, strike) for b in barriers]
+    barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, 1.0) for b in barriers]
     for index, underlying in enumerate(underlyings):
         for raw in underlying.barriers:
             barrier_specs.append((underlying.name, raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw), performance[:, :, index], spots[index]))
@@ -332,26 +330,26 @@ def price_request(
         memory = np.zeros(p.paths)
         coupon = np.full(p.paths, accrual.coupon_rate / accrual.observations)
         for idx in obs_idx:
-            eligible = basket_levels[:, idx] >= strike
+            eligible = basket_ratios[:, idx] >= 1.0
             paid = np.where(eligible, coupon + (memory if accrual.memory else 0.0), 0.0)
             memory = np.where(eligible, 0.0, memory + coupon)
             coupon_paid_path += paid
         state["coupon_paid"] = float(np.mean(coupon_paid_path))
         state["memory_carry"] = float(np.mean(memory))
-        payoff = payoff + coupon_paid_path * strike
+        payoff = payoff + coupon_paid_path * request.instrument.notional
     if p.payoff_type == "fcn":
-        redemption = np.where(knock_in_mask, np.minimum(terminal, strike), strike)
-        payoff = coupon_paid_path * strike + redemption
+        redemption = np.where(knock_in_mask, terminal_ratio, 1.0) * request.instrument.notional
+        payoff = coupon_paid_path * request.instrument.notional + redemption
     if p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs):
-        payoff = np.where(knock_in_mask, intrinsic, 0.0)
+        payoff = np.where(knock_in_mask, intrinsic_ratio * request.instrument.notional, 0.0)
     if np.any(knock_out_mask):
         rebate = max((original.rebate for _, original, _, _ in barrier_specs if original.event == "KO"), default=0.0)
-        ko_settlement = strike if p.payoff_type in {"fcn", "autocall"} else rebate
+        ko_settlement = request.instrument.notional if p.payoff_type in {"fcn", "autocall"} else rebate * request.instrument.notional
         payoff = np.where(knock_out_mask, ko_settlement, payoff)
     if p.payoff_type == "autocall":
-        payoff = np.where(knock_out_mask, np.full(p.paths, strike), payoff)
-    discounted = exp(-rate * t) * payoff * p.currency_conversion * request.instrument.notional / strike
-    return PriceResult(float(np.mean(discounted)), float(np.std(discounted, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_levels[0, 0] / strike), "spot_state": "ATM" if abs(basket_levels[0, 0] / strike - 1.0) < 1e-12 else ("OTM" if basket_levels[0, 0] / strike < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state})
+        payoff = np.where(knock_out_mask, np.full(p.paths, request.instrument.notional), payoff)
+    discounted = exp(-rate * t) * payoff * p.currency_conversion
+    return PriceResult(float(np.mean(discounted)), float(np.std(discounted, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state})
 
 
 def _aad_greeks(request: PricingRequest, z: np.ndarray) -> dict[str, float]:

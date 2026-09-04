@@ -30,7 +30,7 @@
         "name": "TSLA US",
         "currency": "HKD",
         "spot": 250.0,
-        "strikePrice": 200.0,
+        "strikePrice": 220.0,
         "barrierPrice": 0.8,
         "barriers": [{"direction": "down", "event": "KI", "level": 0.70, "level_type": "relative_initial", "monitoring": "global", "observation_dates": [], "rebate": 0.0}],
         "fx_pair": "USDHKD",

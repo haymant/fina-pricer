@@ -223,3 +223,35 @@ def test_memory_coupon_has_carry_state() -> None:
     }
     result = price_request(PricingRequest.model_validate(case))
     assert "memory_carry" in result.diagnostics["coupon_state"]
+
+
+def test_fcn_outputs_intrinsic_funding_and_coupon_legs() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["CommonEconomics"] = {
+        "notional": 770000.0,
+        "payment_currency": "USD",
+        "discount_rate": 0.03,
+        "currency_conversion": 1.0,
+    }
+    case["Legs"] = [
+        {"leg_id": 10, "name": "SHORT_DOWNSIDE_PUT", "leg_type": "intrinsic_option", "sign": "long"},
+        {"leg_id": 20, "name": "PAR_FUNDING", "leg_type": "funding"},
+        {"leg_id": 30, "name": "MEMORY_COUPON", "leg_type": "coupon", "coupon_rate": 0.12, "memory": True},
+    ]
+    output = sensitivity(PricingRequest.model_validate(case))
+    assert set(output["LegResults"]) == {"intrinsic_option", "funding", "coupon"}
+    assert all(output["LegResults"][leg]["sensitivities"] for leg in output["LegResults"])
+    leg_pv = sum(output["LegResults"][leg]["pv_amount"] for leg in output["LegResults"])
+    assert leg_pv == pytest.approx(output["PV"], rel=1e-12, abs=1e-7)
+    assert output["LegResults"]["funding"]["pv_amount"] > 0
+    assert output["LegResults"]["coupon"]["pv_amount"] >= 0
+
+
+def test_leg_definition_rejects_duplicate_types() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["Legs"] = [
+        {"leg_id": 1, "name": "A", "leg_type": "funding"},
+        {"leg_id": 2, "name": "B", "leg_type": "funding"},
+    ]
+    with pytest.raises(ValueError, match="leg type"):
+        PricingRequest.model_validate(case)

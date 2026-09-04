@@ -144,6 +144,36 @@ class PricingParameters(BaseModel):
         return self
 
 
+class CommonEconomics(BaseModel):
+    """Economics shared by all decomposed legs.
+
+    These fields are optional so legacy requests remain wire-compatible. When
+    supplied, they are the authoritative common notional/currency/discounting
+    inputs used by every leg.
+    """
+
+    notional: float | None = Field(default=None, gt=0)
+    payment_currency: str | None = None
+    discount_rate: float | None = None
+    currency_conversion: float | None = Field(default=None, gt=0)
+
+
+class LegDefinition(BaseModel):
+    """Economic definition of one simulation leg."""
+
+    leg_id: int
+    name: str
+    leg_type: Literal["intrinsic_option", "funding", "coupon"]
+    notional: float | None = Field(default=None, gt=0)
+    sign: Literal["long", "short"] = "long"
+    option_type: Literal["call", "put"] | None = None
+    strike: float | None = Field(default=None, gt=0)
+    coupon_rate: float | None = None
+    memory: bool | None = None
+    observations: int | None = Field(default=None, ge=1)
+    pay_if_ki: bool | None = None
+
+
 class PricingRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
     instrument: InstrumentKey = Field(alias="InstrumentKey")
@@ -156,6 +186,21 @@ class PricingRequest(BaseModel):
         alias="UpdatedLifecycle", default_factory=UpdatedLifecycle
     )
     parameters: PricingParameters
+    common_economics: CommonEconomics | None = Field(
+        default=None, alias="CommonEconomics"
+    )
+    legs: list[LegDefinition] | None = Field(default=None, alias="Legs")
+
+    @model_validator(mode="after")
+    def unique_leg_ids_and_types(self) -> PricingRequest:
+        if self.legs:
+            ids = [leg.leg_id for leg in self.legs]
+            if len(ids) != len(set(ids)):
+                raise ValueError("leg ids must be unique")
+            types = [leg.leg_type for leg in self.legs]
+            if len(types) != len(set(types)):
+                raise ValueError("each leg type may be defined only once")
+        return self
 
 
 @dataclass(frozen=True)
@@ -163,6 +208,8 @@ class PriceResult:
     pv: float
     stderr: float
     diagnostics: dict[str, Any]
+    leg_values: dict[str, Any]
+    leg_stderrs: dict[str, float]
 
 
 def _norm_cdf(x: float) -> float:
@@ -274,8 +321,31 @@ def _relative_barrier(barrier: BarrierSpec, initial: float) -> BarrierSpec:
     return barrier.model_copy(update={"level": barrier.level / initial, "level_type": "relative_initial"})
 
 
+def _default_legs(request: PricingRequest) -> list[LegDefinition]:
+    if request.legs is not None:
+        return request.legs
+    legs = [
+        LegDefinition(leg_id=1, name="INTRINSIC_OPTION", leg_type="intrinsic_option"),
+    ]
+    if request.parameters.payoff_type in {"fcn", "autocall"}:
+        legs.append(LegDefinition(leg_id=2, name="FUNDING", leg_type="funding"))
+    if request.parameters.accrual is not None:
+        legs.append(LegDefinition(leg_id=3, name="COUPON", leg_type="coupon"))
+    return legs
+
+
+def _leg_economics(request: PricingRequest, leg: LegDefinition) -> tuple[float, float]:
+    common = request.common_economics
+    notional = leg.notional or (common.notional if common and common.notional else request.instrument.notional)
+    conversion = common.currency_conversion if common and common.currency_conversion else request.parameters.currency_conversion
+    sign = 1.0 if leg.sign == "long" else -1.0
+    return notional * sign, conversion
+
+
 def price_request(
-    request: PricingRequest, overrides: dict[str, float] | None = None
+    request: PricingRequest,
+    overrides: dict[str, float] | None = None,
+    component: str | None = None,
 ) -> PriceResult:
     """Price a single underlying or a capped worst-of/best-of basket with GBM paths."""
     p = request.parameters
@@ -292,7 +362,9 @@ def price_request(
     corr = _correlation_matrix(request, n)
     z = rng.standard_normal((p.paths, p.steps, n)) @ np.linalg.cholesky(corr).T
     vols = np.array([overrides.get(f"vol:{u.name}", _market_value_for(request.market_data.vol_data, "underlying", u.name, p.volatility)) for u in underlyings], dtype=float)
-    rate = overrides.get("rate", _market_value_for(request.market_data.ir_data, "currency", request.instrument.payment_currency, p.risk_free_rate))
+    common_rate = request.common_economics.discount_rate if request.common_economics and request.common_economics.discount_rate is not None else p.risk_free_rate
+    conversion = request.common_economics.currency_conversion if request.common_economics and request.common_economics.currency_conversion is not None else p.currency_conversion
+    rate = overrides.get("rate", _market_value_for(request.market_data.ir_data, "currency", request.instrument.payment_currency, common_rate))
     increments = (rate - p.dividend_yield - 0.5 * vols[None, None, :] ** 2) * dt + vols[None, None, :] * sqrt(dt) * z
     asset_paths = spots[None, None, :] * np.exp(np.cumsum(increments, axis=1))
     asset_paths = np.concatenate([np.broadcast_to(spots, (p.paths, 1, n)), asset_paths], axis=1)
@@ -302,7 +374,10 @@ def price_request(
     basket_ratios = np.min(normalized_levels, axis=2) if p.basket_method == "worst_of" else np.max(normalized_levels, axis=2)
     terminal_ratio = basket_ratios[:, -1]
     intrinsic_ratio = np.maximum(terminal_ratio - 1.0, 0.0) if p.option_type == "call" else np.maximum(1.0 - terminal_ratio, 0.0)
-    payoff = intrinsic_ratio * request.instrument.notional
+    default_notional = request.common_economics.notional if request.common_economics and request.common_economics.notional else request.instrument.notional
+    intrinsic_payoff = intrinsic_ratio * default_notional
+    funding_payoff = np.zeros(p.paths)
+    coupon_payoff = np.zeros(p.paths)
     state: dict[str, Any] = {"knock_in": False, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
     knock_in_mask = np.zeros(p.paths, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
@@ -332,25 +407,55 @@ def price_request(
         for idx in obs_idx:
             eligible = basket_ratios[:, idx] >= 1.0
             paid = np.where(eligible, coupon + (memory if accrual.memory else 0.0), 0.0)
+            if not accrual.pay_if_ki:
+                paid = np.where(knock_in_mask, 0.0, paid)
             memory = np.where(eligible, 0.0, memory + coupon)
             coupon_paid_path += paid
         state["coupon_paid"] = float(np.mean(coupon_paid_path))
         state["memory_carry"] = float(np.mean(memory))
-        payoff = payoff + coupon_paid_path * request.instrument.notional
+        coupon_payoff = coupon_paid_path * default_notional
     if p.payoff_type == "fcn":
-        redemption_ratio = np.where(knock_in_mask, np.minimum(terminal_ratio, 1.0), 1.0)
-        redemption = redemption_ratio * request.instrument.notional
-        payoff = coupon_paid_path * request.instrument.notional + redemption
+        funding_payoff = np.full(p.paths, default_notional)
+        # FCN redemption is par funding plus a short downside intrinsic option
+        # after KI. This makes the three legs add back exactly to redemption.
+        intrinsic_payoff = np.where(
+            knock_in_mask, -np.maximum(1.0 - terminal_ratio, 0.0) * default_notional, 0.0
+        )
+        payoff = funding_payoff + intrinsic_payoff + coupon_payoff
+    else:
+        payoff = intrinsic_payoff
     if p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs):
-        payoff = np.where(knock_in_mask, intrinsic_ratio * request.instrument.notional, 0.0)
+        intrinsic_payoff = np.where(knock_in_mask, intrinsic_payoff, 0.0)
+        payoff = intrinsic_payoff
     if np.any(knock_out_mask):
         rebate = max((original.rebate for _, original, _, _ in barrier_specs if original.event == "KO"), default=0.0)
-        ko_settlement = request.instrument.notional if p.payoff_type in {"fcn", "autocall"} else rebate * request.instrument.notional
+        ko_settlement = default_notional if p.payoff_type in {"fcn", "autocall"} else rebate * default_notional
         payoff = np.where(knock_out_mask, ko_settlement, payoff)
+        if p.payoff_type == "fcn":
+            funding_payoff = np.where(knock_out_mask, ko_settlement, funding_payoff)
+            intrinsic_payoff = np.where(knock_out_mask, 0.0, intrinsic_payoff)
+            coupon_payoff = np.where(knock_out_mask, 0.0, coupon_payoff)
+        else:
+            intrinsic_payoff = np.where(knock_out_mask, ko_settlement, intrinsic_payoff)
     if p.payoff_type == "autocall":
-        payoff = np.where(knock_out_mask, np.full(p.paths, request.instrument.notional), payoff)
-    discounted = exp(-rate * t) * payoff * p.currency_conversion
-    return PriceResult(float(np.mean(discounted)), float(np.std(discounted, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state})
+        payoff = np.where(knock_out_mask, np.full(p.paths, default_notional), payoff)
+    leg_values = {
+        "intrinsic_option": intrinsic_payoff,
+        "funding": funding_payoff,
+        "coupon": coupon_payoff,
+    }
+    if request.legs is not None:
+        for leg in request.legs:
+            amount, _ = _leg_economics(request, leg)
+            if leg.leg_type == "funding":
+                leg_values[leg.leg_type] = funding_payoff * amount / default_notional
+            elif leg.leg_type == "coupon":
+                leg_values[leg.leg_type] = coupon_payoff * amount / default_notional
+            elif leg.leg_type == "intrinsic_option":
+                leg_values[leg.leg_type] = intrinsic_payoff * amount / default_notional
+    selected = payoff if component is None else leg_values.get(component, np.zeros(p.paths))
+    discounted_legs = {name: exp(-rate * t) * values * conversion for name, values in leg_values.items()}
+    return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})
 
 
 def _aad_greeks(request: PricingRequest, z: np.ndarray) -> dict[str, float]:
@@ -467,6 +572,8 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 "aad_backend": aad["backend"],
                 **({"svi_parameters": p.svi.model_dump(), "svi_convention": aad["svi_convention"]} if p.svi is not None else ({"smooth_barrier": True, "barrier_smoothing_width": p.barrier_smoothing_width, "smoothing_convention": aad["smoothing_convention"]} if smooth_barrier else {"xad_version": aad["xad_version"]})),
             },
+            base.leg_values,
+            base.leg_stderrs,
         )
     h = p.bump_size
     theta_request = request.model_copy(deep=True)
@@ -548,7 +655,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 "bump": bump,
             }
         )
-    notional = request.instrument.notional
+    notional = request.common_economics.notional if request.common_economics and request.common_economics.notional else request.instrument.notional
     price_pct = base.pv / notional * 100.0
     stderr_pct = base.stderr / notional * 100.0
     valuation = {
@@ -564,6 +671,80 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
     for cell in cells:
         cell["pv_amount"] = base.pv
         cell["price_pct_of_notional"] = price_pct
+
+    # Leg risks are deliberately calculated from the same common-random-number
+    # estimator as the leg price. This keeps decomposition additive and makes
+    # event-state sensitivities explicit rather than attributing them to the
+    # aggregate product by assumption.
+    leg_results: dict[str, Any] = {}
+    for leg in _default_legs(request):
+        leg_base = price_request(request, component=leg.leg_type)
+        leg_cells: list[dict[str, Any]] = []
+        leg_theta_request = request.model_copy(deep=True)
+        leg_theta_request.parameters.eval_datetime = (
+            date.fromisoformat(p.eval_datetime) + timedelta(days=1)
+        ).isoformat()
+        leg_theta = (
+            price_request(leg_theta_request, component=leg.leg_type).pv - leg_base.pv
+        ) / (1.0 / 365.0)
+        for rfk in request.risk_factor_keys:
+            kind = rfk.type
+            base_val = {
+                "Spot": next((u.spot for u in request.unwind_map.underlyings if u.name == (rfk.underlying or request.unwind_map.underlyings[0].name)), request.unwind_map.underlyings[0].spot),
+                "Volatility": _market_value_for(request.market_data.vol_data, "underlying", rfk.underlying or request.unwind_map.underlyings[0].name, p.volatility),
+                "InterestRate": p.risk_free_rate,
+                "FXSpot": p.currency_conversion,
+                "SVIParameter": 0.0,
+            }[kind]
+            bump = h * max(abs(base_val), 1.0) if p.bump_mode == "relative" else h
+            key = {
+                "Spot": f"spot:{rfk.underlying or request.unwind_map.underlyings[0].name}",
+                "Volatility": f"vol:{rfk.underlying}" if rfk.underlying else "vol",
+                "InterestRate": "rate",
+                "FXSpot": "fx",
+                "SVIParameter": "svi",
+            }[kind]
+            if kind == "SVIParameter":
+                up = down = leg_base.pv
+                bump = 0.0
+            elif key == "fx":
+                up = leg_base.pv * (base_val + bump) / base_val
+                down = leg_base.pv * (base_val - bump) / base_val
+            else:
+                up = price_request(request, {key: base_val + bump}, leg.leg_type).pv
+                down = price_request(request, {key: base_val - bump}, leg.leg_type).pv
+            first = (up - down) / (2.0 * bump) if bump else 0.0
+            leg_cells.append({
+                "rfk": rfk.model_dump(exclude_none=True),
+                "sensitivities": {
+                    "delta": first if kind == "Spot" else 0.0,
+                    "gamma": (up - 2.0 * leg_base.pv + down) / (bump * bump) if kind == "Spot" else 0.0,
+                    "vega": first if kind == "Volatility" else 0.0,
+                    "rho": first if kind == "InterestRate" else 0.0,
+                    "theta": -leg_theta,
+                    "fx_delta": first if kind == "FXSpot" else 0.0,
+                    "vanna": 0.0,
+                    "volga": 0.0,
+                    "charm": 0.0,
+                },
+                "method": "common-random-number finite-difference leg decomposition",
+                "bump": bump,
+            })
+        leg_notional, _ = _leg_economics(request, leg)
+        leg_results[leg.leg_type] = {
+            "leg_id": leg.leg_id,
+            "name": leg.name,
+            "leg_type": leg.leg_type,
+            "pv_amount": leg_base.pv,
+            "pv_currency": request.instrument.payment_currency,
+            "price_pct_of_notional": leg_base.pv / abs(leg_notional) * 100.0,
+            "price": leg_base.pv / abs(leg_notional) * 100.0,
+            "price_convention": "100.0 means the leg notional; signed PV carries long/short direction",
+            "notional": abs(leg_notional),
+            "sign": leg.sign,
+            "pv_stderr_amount": leg_base.stderr,
+            "sensitivities": leg_cells,
+        }
 
     cube_types = {
         "Spot": "SpotCube",
@@ -582,6 +763,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
         "notional": notional,
         "notional_currency": request.instrument.payment_currency,
         "PV_stderr_pct_of_notional": stderr_pct,
+        "LegResults": leg_results,
         "explainability": base.diagnostics,
         "SensitivityResults": cells,
         "RiskCube": {

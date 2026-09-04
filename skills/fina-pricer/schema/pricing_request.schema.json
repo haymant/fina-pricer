@@ -9,6 +9,37 @@
     "RiskFactorKeys": {"type": "array", "minItems": 1, "items": {"$ref": "risk_factor_key.schema.json"}},
     "MarketDataSnapshot": {"$ref": "market_data_snapshot.schema.json"},
     "UpdatedLifecycle": {"$ref": "updated_lifecycle.schema.json"},
+    "CommonEconomics": {
+      "type": "object",
+      "properties": {
+        "notional": {"type": "number", "exclusiveMinimum": 0},
+        "payment_currency": {"type": "string"},
+        "discount_rate": {"type": "number"},
+        "currency_conversion": {"type": "number", "exclusiveMinimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "Legs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["leg_id", "name", "leg_type"],
+        "properties": {
+          "leg_id": {"type": "integer"},
+          "name": {"type": "string"},
+          "leg_type": {"enum": ["intrinsic_option", "funding", "coupon"]},
+          "notional": {"type": "number", "exclusiveMinimum": 0},
+          "sign": {"enum": ["long", "short"]},
+          "option_type": {"enum": ["call", "put"]},
+          "strike": {"type": "number", "exclusiveMinimum": 0},
+          "coupon_rate": {"type": "number"},
+          "memory": {"type": "boolean"},
+          "observations": {"type": "integer", "minimum": 1},
+          "pay_if_ki": {"type": "boolean"}
+        },
+        "additionalProperties": false
+      }
+    },
     "parameters": {
       "type": "object",
       "required": ["eval_datetime", "expiry"],

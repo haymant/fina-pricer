@@ -156,6 +156,39 @@ def test_sigmoid_smoothed_barrier_uses_aad_and_finite_greeks() -> None:
         assert all(isfinite(value) for value in cell["sensitivities"].values() if isinstance(value, (int, float)))
 
 
+def test_aapl_tsla_worst_of_basket_has_per_underlying_risk() -> None:
+    request = PricingRequest.model_validate(json.loads((ROOT / "data" / "basket_aapl_tsla.json").read_text()))
+    output = sensitivity(request)
+    assert output["explainability"]["underlyings"] == ["AAPL US", "TSLA US"]
+    assert output["explainability"]["basket_method"] == "worst_of"
+    assert output["price_pct_of_notional"] == pytest.approx(output["PV"] / output["notional"] * 100.0)
+    spot_cells = [c for c in output["RiskCube"]["cells"] if c["rfk"]["type"] == "Spot"]
+    assert {c["rfk"]["underlying"] for c in spot_cells} == {"AAPL US", "TSLA US"}
+    assert all(c["bump"] == pytest.approx(c["rfk"]["underlying"] == "AAPL US" and 2.0 or 2.5) for c in spot_cells)
+    assert output["explainability"]["barrier_events"][0]["level_type"] == "relative_initial"
+
+
+def test_basket_is_capped_at_three_underlyings() -> None:
+    case = json.loads((ROOT / "data/basket_aapl_tsla.json").read_text())
+    case["UnwindMapRaw"]["underlyings"].extend([
+        {**case["UnwindMapRaw"]["underlyings"][0], "name": "NVDA US"},
+        {**case["UnwindMapRaw"]["underlyings"][0], "name": "AMZN US"},
+    ])
+    case["MarketDataSnapshot"]["spot_data"].extend([
+        {"rfk": {"underlying": "NVDA US"}, "value": 200.0},
+        {"rfk": {"underlying": "AMZN US"}, "value": 200.0},
+    ])
+    with pytest.raises(ValueError, match="at most 3"):
+        PricingRequest.model_validate(case)
+
+
+def test_default_bump_is_one_percent() -> None:
+    case = json.loads((ROOT / "data/attachment_sample.json").read_text())
+    case["parameters"].pop("bump_size", None)
+    request = PricingRequest.model_validate(case)
+    assert request.parameters.bump_size == pytest.approx(0.01)
+
+
 def test_vercel_asgi_app_is_exported() -> None:
     assert app is not None
     assert hasattr(app, "routes")

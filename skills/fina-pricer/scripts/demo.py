@@ -10,7 +10,10 @@ from pathlib import Path
 
 
 def project_root() -> Path:
-    return Path(__file__).parents[3] / "riskcube-mcp"
+    repo_root = Path(__file__).parents[3]
+    if (repo_root / "src" / "riskcube_mcp").exists():
+        return repo_root
+    return Path(__file__).parents[4] / "riskcube-mcp"
 
 
 def load_engine(root: Path):
@@ -22,11 +25,11 @@ def load_engine(root: Path):
 
 def make_variant(base: dict, moneyness: str, tenor: str, barrier: str, memory: bool) -> dict:
     request = copy.deepcopy(base)
-    strike = request["UnwindMapRaw"]["underlyings"][0]["strikePrice"]
-    spot = strike * {"OTM": 0.90, "ATM": 1.00, "ITM": 1.15}[moneyness]
+    ratio = {"OTM": 0.90, "ATM": 1.00, "ITM": 1.15}[moneyness]
     expiry = "2027-12-03" if tenor == "near" else "2028-09-03"
-    request["UnwindMapRaw"]["underlyings"][0]["spot"] = spot
-    request["MarketDataSnapshot"]["spot_data"][0]["value"] = spot
+    for underlying, spot_point in zip(request["UnwindMapRaw"]["underlyings"], request["MarketDataSnapshot"]["spot_data"]):
+        underlying["spot"] = underlying["strikePrice"] * ratio
+        spot_point["value"] = underlying["spot"]
     request["parameters"]["expiry"] = expiry
     request["parameters"]["accrual"]["memory"] = memory
     smooth_component = barrier == "none" and not memory
@@ -37,7 +40,7 @@ def make_variant(base: dict, moneyness: str, tenor: str, barrier: str, memory: b
         request["parameters"]["barriers"] = []
     else:
         direction, event, monitoring = barrier.split("_")
-        request["parameters"]["barriers"] = [{"direction": direction, "event": event, "level": strike * (1.20 if direction == "up" else 0.80), "monitoring": monitoring, "observation_dates": ["2027-09-03"], "rebate": 0.01}]
+        request["parameters"]["barriers"] = [{"direction": direction, "event": event, "level": (1.20 if direction == "up" else 0.80), "level_type": "relative_initial", "monitoring": monitoring, "observation_dates": ["2027-09-03"], "rebate": 0.01}]
     return request
 
 
@@ -49,7 +52,7 @@ def main() -> int:
     parser.add_argument("--aad-only", action="store_true", help="Fail if any result uses the discontinuous-payoff fallback")
     args = parser.parse_args()
     PricingRequest, sensitivity = load_engine(args.project)
-    fixture = args.input or args.project / "data" / "attachment_sample.json"
+    fixture = args.input or args.project / "data" / "basket_aapl_tsla.json"
     base = json.loads(fixture.read_text())
     variants = []
     for moneyness in ("OTM", "ATM", "ITM"):

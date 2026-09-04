@@ -23,12 +23,13 @@ def make_case(
     if barrier_mode != "none":
         direction = "up" if barrier_mode.startswith("up") else "down"
         event = "KI" if barrier_mode.endswith("ki") else "KO"
-        barrier = 120.0 if direction == "up" else 80.0
+        barrier = 1.20 if direction == "up" else 0.80
         barriers = [
             {
                 "direction": direction,
                 "event": event,
                 "level": barrier,
+                "level_type": "relative_initial",
                 "monitoring": "global" if "global" in barrier_mode else "local",
                 "observation_dates": ["2027-09-03"],
                 "rebate": 0.01,
@@ -121,7 +122,7 @@ def make_case(
             "paths": 2500,
             "steps": 32,
             "seed": 100 + index,
-            "bump_size": 0.0001,
+            "bump_size": 0.01,
             "bump_mode": "relative",
             "currency_conversion": 1.0,
         },

@@ -109,6 +109,8 @@ class AccrualSpec(BaseModel):
     n2: list[int] = Field(default_factory=list, min_length=0)
     fixed_n1_periods: int | None = Field(default=None, ge=0)
     period_coupon_rates: list[float] = Field(default_factory=list, min_length=0)
+    accruals: list[float] = Field(default_factory=list, min_length=0)
+    payment_dates: list[str] = Field(default_factory=list, min_length=0)
     range_lower: float | None = Field(default=None, gt=0)
     range_upper: float | None = Field(default=None, gt=0)
     range_level_type: Literal["absolute", "relative_initial"] = "relative_initial"
@@ -121,8 +123,12 @@ class AccrualSpec(BaseModel):
             raise ValueError("n1 must contain one value per coupon observation")
         if self.n2 and len(self.n2) != self.observations:
             raise ValueError("n2 must contain one value per coupon observation")
-        if self.period_coupon_rates and len(self.period_coupon_rates) != self.observations:
-            raise ValueError("period_coupon_rates must contain one value per coupon observation")
+        if self.period_coupon_rates and self.accruals:
+            raise ValueError("use either period_coupon_rates or accruals, not both")
+        if (self.period_coupon_rates or self.accruals) and len(self.period_coupon_rates or self.accruals) != self.observations:
+            raise ValueError("per-period accrual rates must contain one value per coupon observation")
+        if self.payment_dates and len(self.payment_dates) != self.observations:
+            raise ValueError("payment_dates must contain one value per coupon observation")
         if self.n1 and self.n2 and any(a > b for a, b in zip(self.n1, self.n2)):
             raise ValueError("each n1 must be less than or equal to n2")
         if self.fixed_n1_periods is not None and self.fixed_n1_periods > self.observations:
@@ -409,7 +415,6 @@ def price_request(
     knock_in_mask = np.zeros(p.paths, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
     barrier_events: list[dict[str, Any]] = []
-    coupon_paid_path = np.zeros(p.paths)
     barriers = [b if isinstance(b, BarrierSpec) else BarrierSpec.model_validate(b) for b in p.barriers]
     barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, 1.0) for b in barriers]
     for index, underlying in enumerate(underlyings):
@@ -433,7 +438,12 @@ def price_request(
         scheduled_n1 = accrual.n1
         scheduled_n2 = accrual.n2
         fixed_periods = accrual.fixed_n1_periods
-        if scheduled_n1 and fixed_periods is None:
+        if accrual.payment_dates and fixed_periods is None:
+            fixed_periods = sum(
+                date.fromisoformat(payment_date) <= date.fromisoformat(p.eval_datetime)
+                for payment_date in accrual.payment_dates
+            )
+        elif scheduled_n1 and fixed_periods is None:
             fixed_periods = accrual.observations
         if fixed_periods is None:
             fixed_periods = 0
@@ -456,16 +466,37 @@ def price_request(
                 period_n1.append(in_range_fraction * period_n2[period])
         else:
             period_n1 = [np.full(p.paths, period_n2[period], dtype=float) for period in range(accrual.observations)]
+        coupon_periods: list[dict[str, Any]] = []
+        coupon_forward_path = np.zeros(p.paths)
+        coupon_realized_path = np.zeros(p.paths)
+        rates = accrual.accruals or accrual.period_coupon_rates
         for period, idx in enumerate(obs_idx):
-            coupon_rate = accrual.period_coupon_rates[period] if accrual.period_coupon_rates else accrual.coupon_rate / accrual.observations
+            coupon_rate = rates[period] if rates else accrual.coupon_rate / accrual.observations
             coupon = coupon_rate * period_n1[period] / max(period_n2[period], 1)
             eligible = basket_ratios[:, idx] >= 1.0
             paid = np.where(eligible, coupon + (memory if accrual.memory else 0.0), 0.0)
             if not accrual.pay_if_ki:
                 paid = np.where(knock_in_mask, 0.0, paid)
             memory = np.where(eligible, 0.0, memory + coupon)
-            coupon_paid_path += paid
-        state["coupon_paid"] = float(np.mean(coupon_paid_path))
+            is_realized = bool(accrual.payment_dates and date.fromisoformat(accrual.payment_dates[period]) <= date.fromisoformat(p.eval_datetime))
+            if is_realized:
+                coupon_realized_path += paid
+            else:
+                coupon_forward_path += paid
+            coupon_periods.append({
+                "period": period,
+                "accrual_rate": coupon_rate,
+                "n1": accrual.n1[period] if period < len(accrual.n1) and period < fixed_periods else None,
+                "n1_expected": float(np.mean(period_n1[period])),
+                "n2": period_n2[period],
+                "realized": is_realized,
+                "coupon_amount": float(np.mean(paid) * default_notional),
+                "discounted_forward_total": float(
+                    np.mean(paid) * default_notional * exp(-rate * t * idx / p.steps) * conversion
+                ) if not is_realized else 0.0,
+            })
+        state["coupon_paid"] = float(np.mean(coupon_realized_path))
+        state["coupon_forward"] = float(np.mean(coupon_forward_path))
         state["memory_carry"] = float(np.mean(memory))
         state["coupon_schedule"] = {
             "n1": scheduled_n1,
@@ -475,8 +506,9 @@ def price_request(
             "range_lower": accrual.range_lower,
             "range_upper": accrual.range_upper,
             "range_level_type": accrual.range_level_type,
+            "periods": coupon_periods,
         }
-        coupon_payoff = coupon_paid_path * default_notional
+        coupon_payoff = coupon_forward_path * default_notional
     if p.payoff_type == "fcn":
         funding_payoff = np.full(p.paths, default_notional)
         # FCN redemption is par funding plus a short downside intrinsic option

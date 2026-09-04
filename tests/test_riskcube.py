@@ -266,7 +266,8 @@ def test_future_coupon_uses_stochastic_n1_over_n2() -> None:
             "coupon_rate": 0.04,
             "memory": True,
             "observations": 4,
-            "period_coupon_rates": [0.01, 0.01, 0.01, 0.01],
+            "accruals": [0.0, 0.01, 0.01, 0.01],
+            "payment_dates": ["2027-01-01", "2027-02-01", "2027-03-01", "2028-01-01"],
             "n1": [20, 20, 20, 20],
             "n2": [20, 20, 20, 20],
             "fixed_n1_periods": 3,
@@ -280,6 +281,11 @@ def test_future_coupon_uses_stochastic_n1_over_n2() -> None:
     assert schedule["future_n1_stochastic"] is True
     assert schedule["fixed_n1_periods"] == 3
     assert schedule["n2"] == [20, 20, 20, 20]
+    assert schedule["periods"][0]["accrual_rate"] == 0.0
+    assert all(period["realized"] for period in schedule["periods"][:3])
+    assert schedule["periods"][3]["realized"] is False
+    assert stochastic["explainability"]["coupon_state"]["coupon_paid"] > 0
+    assert stochastic["explainability"]["coupon_state"]["coupon_forward"] > 0
 
     full_case = json.loads(json.dumps(case))
     full_case["parameters"]["accrual"]["fixed_n1_periods"] = 4

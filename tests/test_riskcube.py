@@ -165,7 +165,11 @@ def test_aapl_tsla_worst_of_basket_has_per_underlying_risk() -> None:
     spot_cells = [c for c in output["RiskCube"]["cells"] if c["rfk"]["type"] == "Spot"]
     assert {c["rfk"]["underlying"] for c in spot_cells} == {"AAPL US", "TSLA US"}
     assert all(c["bump"] == pytest.approx(c["rfk"]["underlying"] == "AAPL US" and 2.0 or 2.5) for c in spot_cells)
-    assert output["explainability"]["barrier_events"][0]["level_type"] == "relative_initial"
+    assert {event["underlying"] for event in output["explainability"]["barrier_events"]} == {"AAPL US", "TSLA US"}
+    levels = {event["underlying"]: event["level"] for event in output["explainability"]["barrier_events"]}
+    assert levels["AAPL US"] == pytest.approx(0.80)
+    assert levels["TSLA US"] == pytest.approx(0.70)
+    assert all(event["level_type"] == "relative_initial" for event in output["explainability"]["barrier_events"])
 
 
 def test_basket_is_capped_at_three_underlyings() -> None:

@@ -36,6 +36,7 @@ class Underlying(BaseModel):
     spot: float = Field(gt=0)
     strikePrice: float = Field(gt=0)
     barrierPrice: float | None = Field(default=None, gt=0)
+    barriers: list[dict[str, Any]] = Field(default_factory=list)
     fx_pair: str | None = None
     calendar: str | None = None
     time: str | None = None
@@ -310,11 +311,15 @@ def price_request(
     barrier_events: list[dict[str, Any]] = []
     coupon_paid_path = np.zeros(p.paths)
     barriers = [b if isinstance(b, BarrierSpec) else BarrierSpec.model_validate(b) for b in p.barriers]
-    for original in barriers:
-        b = _relative_barrier(original, strike if original.level_type == "absolute" else 1.0)
-        hit_mask = _barrier_mask(basket_paths, b, p.eval_datetime, p.expiry)
+    barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, strike) for b in barriers]
+    for index, underlying in enumerate(underlyings):
+        for raw in underlying.barriers:
+            barrier_specs.append((underlying.name, raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw), performance[:, :, index], spots[index]))
+    for underlying_name, original, barrier_path, reference in barrier_specs:
+        b = _relative_barrier(original, reference if original.level_type == "absolute" else 1.0)
+        hit_mask = _barrier_mask(barrier_path, b, p.eval_datetime, p.expiry)
         if np.any(hit_mask):
-            barrier_events.append({"event": b.event, "direction": b.direction, "level": original.level, "level_type": original.level_type, "monitoring": b.monitoring, "observation_dates": b.observation_dates, "hit_probability": float(np.mean(hit_mask))})
+            barrier_events.append({"underlying": underlying_name or "basket", "event": b.event, "direction": b.direction, "level": original.level, "level_type": original.level_type, "monitoring": b.monitoring, "observation_dates": b.observation_dates, "hit_probability": float(np.mean(hit_mask))})
             if b.event == "KI":
                 knock_in_mask |= hit_mask
                 state["knock_in"] = True
@@ -337,10 +342,10 @@ def price_request(
     if p.payoff_type == "fcn":
         redemption = np.where(knock_in_mask, np.minimum(terminal, strike), strike)
         payoff = coupon_paid_path * strike + redemption
-    if p.payoff_type == "barrier" and any(b.event == "KI" for b in barriers):
+    if p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs):
         payoff = np.where(knock_in_mask, intrinsic, 0.0)
     if np.any(knock_out_mask):
-        rebate = max((b.rebate for b in barriers if b.event == "KO"), default=0.0)
+        rebate = max((original.rebate for _, original, _, _ in barrier_specs if original.event == "KO"), default=0.0)
         ko_settlement = strike if p.payoff_type in {"fcn", "autocall"} else rebate
         payoff = np.where(knock_out_mask, ko_settlement, payoff)
     if p.payoff_type == "autocall":

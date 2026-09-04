@@ -38,9 +38,14 @@ def make_variant(base: dict, moneyness: str, tenor: str, barrier: str, memory: b
         request["parameters"]["accrual"] = None
     if barrier == "none":
         request["parameters"]["barriers"] = []
+        for underlying in request["UnwindMapRaw"]["underlyings"]:
+            underlying["barriers"] = []
     else:
         direction, event, monitoring = barrier.split("_")
-        request["parameters"]["barriers"] = [{"direction": direction, "event": event, "level": (1.20 if direction == "up" else 0.80), "level_type": "relative_initial", "monitoring": monitoring, "observation_dates": ["2027-09-03"], "rebate": 0.01}]
+        request["parameters"]["barriers"] = []
+        for index, underlying in enumerate(request["UnwindMapRaw"]["underlyings"]):
+            level = (1.20 if direction == "up" else 0.80) - (0.05 * index if direction == "down" else 0.0)
+            underlying["barriers"] = [{"direction": direction, "event": event, "level": level, "level_type": "relative_initial", "monitoring": monitoring, "observation_dates": ["2027-09-03"], "rebate": 0.01}]
     return request
 
 

@@ -20,6 +20,7 @@
         "spot": 200.0,
         "strikePrice": 200.0,
         "barrierPrice": 0.8,
+        "barriers": [{"direction": "down", "event": "KI", "level": 0.80, "level_type": "relative_initial", "monitoring": "global", "observation_dates": [], "rebate": 0.0}],
         "fx_pair": "USDHKD",
         "calendar": "EXCH HKG",
         "time": "1600",
@@ -31,6 +32,7 @@
         "spot": 250.0,
         "strikePrice": 200.0,
         "barrierPrice": 0.8,
+        "barriers": [{"direction": "down", "event": "KI", "level": 0.70, "level_type": "relative_initial", "monitoring": "global", "observation_dates": [], "rebate": 0.0}],
         "fx_pair": "USDHKD",
         "calendar": "EXCH HKG",
         "time": "1600",
@@ -155,16 +157,6 @@
       ]
     ],
     "basket_method": "worst_of",
-    "barriers": [
-      {
-        "direction": "down",
-        "event": "KI",
-        "level": 0.8,
-        "level_type": "relative_initial",
-        "monitoring": "global",
-        "observation_dates": [],
-        "rebate": 0.0
-      }
-    ]
+    "barriers": []
   }
 }

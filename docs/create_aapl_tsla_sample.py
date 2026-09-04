@@ -6,8 +6,8 @@ base = json.loads((root / 'data' / 'attachment_sample.json').read_text())
 base['InstrumentKey']['name'] = 'AAPL_TSLA_WORST_OF_FCN'
 base['InstrumentKey']['isin'] = 'US_AAPL_TSLA_FCN'
 base['UnwindMapRaw']['underlyings'] = [
-    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'AAPL US', 'spot': 200.0, 'strikePrice': 200.0, 'barrierPrice': 0.8},
-    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'TSLA US', 'spot': 250.0, 'strikePrice': 200.0, 'barrierPrice': 0.8},
+    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'AAPL US', 'spot': 200.0, 'strikePrice': 200.0, 'barrierPrice': 0.8, 'barriers': [{'direction': 'down', 'event': 'KI', 'level': 0.80, 'level_type': 'relative_initial', 'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0}]},
+    {**base['UnwindMapRaw']['underlyings'][0], 'name': 'TSLA US', 'spot': 250.0, 'strikePrice': 200.0, 'barrierPrice': 0.8, 'barriers': [{'direction': 'down', 'event': 'KI', 'level': 0.70, 'level_type': 'relative_initial', 'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0}]},
 ]
 base['RiskFactorKeys'] = [
     {'type': 'Spot', 'underlying': 'AAPL US'},
@@ -35,10 +35,7 @@ base['parameters'].update({
     'correlation': [[1.0, 0.50], [0.50, 1.0]],
     'basket_method': 'worst_of',
     'bump_size': 0.01,
-    'barriers': [{
-        'direction': 'down', 'event': 'KI', 'level': 0.80, 'level_type': 'relative_initial',
-        'monitoring': 'global', 'observation_dates': [], 'rebate': 0.0,
-    }],
+    'barriers': [],
 })
 (root / 'data' / 'basket_aapl_tsla.json').write_text(json.dumps(base, indent=2) + '\n')
 print(root / 'data' / 'basket_aapl_tsla.json')

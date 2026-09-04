@@ -1,1 +1,30 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"RiskFactorKey","type":"object","required":["type"],"properties":{"type":{"enum":["Spot","Volatility","InterestRate","FXSpot","SVIParameter"]},"underlying":{"type":["string","null"]},"currency_pair":{"type":["string","null"]},"expiry":{"type":["string","null"],"format":"date"},"strike":{"type":["number","null"]},"tenor":{"type":["string","null"]},"temporal_role":{"type":["string","null"]},"date":{"type":["string","null"],"format":"date"},"surface_parameter":{"type":["string","null"],"enum":["a","b","rho","m","sigma",null]}},"allOf":[{"if":{"properties":{"type":{"const":"SVIParameter"}}},"then":{"required":["surface_parameter"]}}],"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RiskFactorKey",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": {"enum": ["Spot", "Volatility", "InterestRate", "FXSpot", "SVIParameter"]},
+    "underlying": {"type": ["string", "null"]},
+    "currency_pair": {"type": ["string", "null"]},
+    "expiry": {"type": ["string", "null"], "format": "date"},
+    "strike": {"type": ["number", "null"]},
+    "tenor": {"type": ["string", "null"]},
+    "temporal_role": {"type": ["string", "null"]},
+    "date": {"type": ["string", "null"], "format": "date"},
+    "surface_parameter": {"type": ["string", "null"], "enum": ["a", "b", "rho", "m", "sigma", null]}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {"const": "SVIParameter"}
+        }
+      },
+      "then": {
+        "required": ["surface_parameter"]
+      }
+    }
+  ],
+  "additionalProperties": true
+}

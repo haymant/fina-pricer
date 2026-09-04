@@ -1,1 +1,46 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"UnwindMapRaw","type":"object","required":["underlyings"],"properties":{"underlyings":{"type":"array","minItems":1,"maxItems":3,"items":{"type":"object","required":["name","currency","spot","strikePrice"],"properties":{"name":{"type":"string"},"currency":{"type":"string"},"spot":{"type":"number","exclusiveMinimum":0},"strikePrice":{"type":"number","exclusiveMinimum":0},"barrierPrice":{"type":["number","null"],"exclusiveMinimum":0},"barriers":{"type":"array","items":{"type":"object","properties":{"direction":{"enum":["up","down"]},"event":{"enum":["KI","KO"]},"level":{"type":"number","exclusiveMinimum":0},"level_type":{"enum":["relative_initial","absolute"],"default":"relative_initial"},"monitoring":{"enum":["global","local"]},"observation_dates":{"type":"array","items":{"type":"string"}},"rebate":{"type":"number"}},"additionalProperties":true}},"fx_pair":{"type":["string","null"]},"calendar":{"type":["string","null"]},"time":{"type":["string","null"]},"time_zone":{"type":["string","null"]}},"additionalProperties":true}}},"additionalProperties":true}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "UnwindMapRaw",
+  "type": "object",
+  "required": ["underlyings"],
+  "properties": {
+    "underlyings": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["name", "currency", "spot", "strikePrice"],
+        "properties": {
+          "name": {"type": "string"},
+          "currency": {"type": "string"},
+          "spot": {"type": "number", "exclusiveMinimum": 0},
+          "strikePrice": {"type": "number", "exclusiveMinimum": 0},
+          "barrierPrice": {"type": ["number", "null"], "exclusiveMinimum": 0},
+          "barriers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "direction": {"enum": ["up", "down"]},
+                "event": {"enum": ["KI", "KO"]},
+                "level": {"type": "number", "exclusiveMinimum": 0},
+                "level_type": {"enum": ["relative_initial", "absolute"], "default": "relative_initial"},
+                "monitoring": {"enum": ["global", "local"]},
+                "observation_dates": {"type": "array", "items": {"type": "string"}},
+                "rebate": {"type": "number"}
+              },
+              "additionalProperties": true
+            }
+          },
+          "fx_pair": {"type": ["string", "null"]},
+          "calendar": {"type": ["string", "null"]},
+          "time": {"type": ["string", "null"]},
+          "time_zone": {"type": ["string", "null"]}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

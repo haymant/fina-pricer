@@ -173,6 +173,16 @@ def test_aapl_tsla_worst_of_basket_has_per_underlying_risk() -> None:
     assert all(event["level_type"] == "relative_initial" for event in output["explainability"]["barrier_events"])
 
 
+def test_fcn_knock_in_redemption_is_capped_at_par() -> None:
+    case = json.loads((ROOT / "data/basket_aapl_tsla.json").read_text())
+    for underlying in case["UnwindMapRaw"]["underlyings"]:
+        underlying["barriers"] = [{"direction": "up", "event": "KI", "level": 0.50, "level_type": "relative_initial", "monitoring": "global"}]
+    case["parameters"]["barriers"] = []
+    output = sensitivity(PricingRequest.model_validate(case))
+    assert output["explainability"]["barrier_events"]
+    assert output["PV"] <= output["notional"] * (1.0 + case["parameters"]["accrual"]["coupon_rate"])
+
+
 def test_basket_is_capped_at_three_underlyings() -> None:
     case = json.loads((ROOT / "data/basket_aapl_tsla.json").read_text())
     case["UnwindMapRaw"]["underlyings"].extend([

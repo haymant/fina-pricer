@@ -338,7 +338,8 @@ def price_request(
         state["memory_carry"] = float(np.mean(memory))
         payoff = payoff + coupon_paid_path * request.instrument.notional
     if p.payoff_type == "fcn":
-        redemption = np.where(knock_in_mask, terminal_ratio, 1.0) * request.instrument.notional
+        redemption_ratio = np.where(knock_in_mask, np.minimum(terminal_ratio, 1.0), 1.0)
+        redemption = redemption_ratio * request.instrument.notional
         payoff = coupon_paid_path * request.instrument.notional + redemption
     if p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs):
         payoff = np.where(knock_in_mask, intrinsic_ratio * request.instrument.notional, 0.0)

@@ -284,6 +284,10 @@ def test_future_coupon_uses_stochastic_n1_over_n2() -> None:
     assert schedule["periods"][0]["accrual_rate"] == 0.0
     assert all(period["realized"] for period in schedule["periods"][:3])
     assert schedule["periods"][3]["realized"] is False
+    assert any(
+        period["n1_expected"] < period["n2"]
+        for period in schedule["periods"][3:]
+    )
     assert stochastic["explainability"]["coupon_state"]["coupon_paid"] > 0
     assert stochastic["explainability"]["coupon_state"]["coupon_forward"] > 0
 

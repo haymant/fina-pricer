@@ -23,6 +23,14 @@ def test_scenario_builder_materializes_spot_rule() -> None:
     assert materialized["MarketDataSnapshot"]["spot_data"][0]["value"] == original_spot * 1.10
 
 
+def test_scenario_market_date_materializes_into_request() -> None:
+    payload = json.loads((ROOT / "data" / "attachment_sample.json").read_text())
+    scenario = ScenarioBuilder("dated", "2027-08-18T00:00:00Z", "2027-08-18T00:00:00Z", scenario_id="dated").build()
+    materialized = materialize_request(payload, scenario)
+    assert materialized["parameters"]["eval_datetime"] == "2027-08-18"
+    assert materialized["RiskFactorKeys"][0]["date"] == "2027-08-18"
+
+
 def test_current_report_is_virtual() -> None:
     scenario = ScenarioBuilder.current_report().build()
     assert scenario["scenario_kind"] == "virtual"

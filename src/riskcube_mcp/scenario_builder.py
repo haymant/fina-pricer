@@ -133,6 +133,14 @@ def materialize_request(request: dict[str, Any], scenario: dict[str, Any], *, ma
     elif scenario.get("market_data_source") == "current" and market_data_resolver is not None:
         materialized["MarketDataSnapshot"] = copy.deepcopy(market_data_resolver(materialized))
 
+    market_date = scenario.get("market_data_datetime") or scenario.get("base_market_data_datetime")
+    if market_date:
+        market_date_text = str(market_date).replace("Z", "")[:10]
+        materialized.setdefault("parameters", {})["eval_datetime"] = market_date_text
+        for rfk in materialized.get("RiskFactorKeys", []):
+            if rfk.get("type") in {"Spot", "InterestRate", "FXSpot", "Dividend"} or rfk.get("temporal_role") == "ValuationDate":
+                rfk["date"] = market_date_text
+
     underlyings = materialized.get("UnwindMapRaw", {}).get("underlyings", [])
     for manipulation in scenario.get("market_data_manipulations", []):
         if not _matches_filter(materialized, manipulation.get("filter_conditions")):

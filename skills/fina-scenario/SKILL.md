@@ -20,7 +20,7 @@ Use `scenario_update` to replace a definition deliberately before production use
 
 ## Scenario forms
 
-A materialized scenario carries `market_data_snapshot`. A rule scenario carries `market_data_manipulations` such as `spot_shift`, `vol_manipulation`, `fx_manipulation`, `ir_manipulation`, `dividend_manipulation`, and `fx_vol_manipulation`. Rules may include `underlying_name`, `currency_pair`, `curve_name`, and `filter_conditions`.
+A materialized scenario carries `market_data_snapshot`. A rule scenario carries `market_data_manipulations` such as `spot_shift`, `vol_manipulation`, `fx_manipulation`, `ir_manipulation`, `dividend_manipulation`, and `fx_vol_manipulation`. Rules may include `underlying_name`, `currency_pair`, `curve_name`, and `filter_conditions`. `base_market_data_datetime` is applied during materialization to `parameters.eval_datetime` and valuation-date risk-factor keys, allowing two otherwise identical rule sets to be run at different market-data dates.
 
 Use `ScenarioBuilder.current_report()` or `VIRTUAL_CURRENT_REPORT` for a report over all instruments at current evaluation time. A deployment should provide a market-data resolver for that virtual scenario; do not invent market data when no resolver is configured.
 

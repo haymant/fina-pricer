@@ -1,0 +1,180 @@
+{
+  "description": "Two persisted dynamic-rule scenarios with identical shocks and different market-data dates.",
+  "rule_family": {
+    "spot_shift": "+5% relative spot on UND_A HK",
+    "vol_manipulation": "+2 vol points on UND_A HK",
+    "request_count": 1
+  },
+  "materialization_checks": [
+    {
+      "scenario_key": "DYNAMIC_RULES_20270518",
+      "market_data_date": "2027-05-18T00:00:00Z",
+      "materialized_eval_datetime": "2027-05-18",
+      "materialized_spot": 6.67926,
+      "materialized_volatility": 0.27
+    },
+    {
+      "scenario_key": "DYNAMIC_RULES_20270818",
+      "market_data_date": "2027-08-18T00:00:00Z",
+      "materialized_eval_datetime": "2027-08-18",
+      "materialized_spot": 6.67926,
+      "materialized_volatility": 0.27
+    }
+  ],
+  "runs": [
+    {
+      "instance_id": "9d979e01-ff93-44a1-894c-d1bc097cac02",
+      "batch_id": "DYNAMIC_RULES_PROMOTION_20260905",
+      "version_id": 1,
+      "version_key": "market-date-v1-2027-05-18",
+      "scenario_id": 1,
+      "scenario_key": "DYNAMIC_RULES_20270518",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "partitions": [
+        "/home/ubuntu/fina-pricer-push/data/dynamic_dated_riskcube/version_id=1/scenario_id=1/instance_id=9d979e01-ff93-44a1-894c-d1bc097cac02.parquet"
+      ]
+    },
+    {
+      "instance_id": "994c1042-59b4-4ff1-b53b-f814cbfef125",
+      "batch_id": "DYNAMIC_RULES_PROMOTION_20260905",
+      "version_id": 2,
+      "version_key": "market-date-v2-2027-08-18",
+      "scenario_id": 2,
+      "scenario_key": "DYNAMIC_RULES_20270818",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "partitions": [
+        "/home/ubuntu/fina-pricer-push/data/dynamic_dated_riskcube/version_id=2/scenario_id=2/instance_id=994c1042-59b4-4ff1-b53b-f814cbfef125.parquet"
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "version_id": 1,
+      "version_key": "market-date-v1-2027-05-18",
+      "scenario_id": 1,
+      "scenario_key": "DYNAMIC_RULES_20270518",
+      "instance_id": "9d979e01-ff93-44a1-894c-d1bc097cac02",
+      "status": "COMPLETED",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "pv_amount": 826773.8163651732,
+      "price_pct_of_notional": 107.37322290456794,
+      "delta": 20962.798024126907,
+      "gamma": -46031202.71091426,
+      "vega": -140015.97833062988,
+      "rho": -714203.7683358649,
+      "theta": 30937.43775820243,
+      "partition": "/home/ubuntu/fina-pricer-push/data/dynamic_dated_riskcube/version_id=1/scenario_id=1/instance_id=9d979e01-ff93-44a1-894c-d1bc097cac02.parquet"
+    },
+    {
+      "version_id": 2,
+      "version_key": "market-date-v2-2027-08-18",
+      "scenario_id": 2,
+      "scenario_key": "DYNAMIC_RULES_20270818",
+      "instance_id": "994c1042-59b4-4ff1-b53b-f814cbfef125",
+      "status": "COMPLETED",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "pv_amount": 834762.9184704969,
+      "price_pct_of_notional": 108.41076863253207,
+      "delta": 4224.382412008045,
+      "gamma": -12649252.797489678,
+      "vega": -18810.49897929188,
+      "rho": -623841.1495863693,
+      "theta": 27103.835681983037,
+      "partition": "/home/ubuntu/fina-pricer-push/data/dynamic_dated_riskcube/version_id=2/scenario_id=2/instance_id=994c1042-59b4-4ff1-b53b-f814cbfef125.parquet",
+      "pv_change_vs_first": 7989.102105323691,
+      "price_pct_change_vs_first": 1.0375457279641296,
+      "delta_change_vs_first": -16738.41561211886,
+      "gamma_change_vs_first": 33381949.91342458,
+      "vega_change_vs_first": 121205.479351338,
+      "theta_change_vs_first": -3833.602076219395
+    }
+  ],
+  "catalogs": {
+    "versions": [
+      {
+        "version_id": 1,
+        "version_key": "market-date-v1-2027-05-18",
+        "version_name": "market-date-v1-2027-05-18",
+        "metadata": {},
+        "created_at": "2026-09-05 07:46:06.645709"
+      },
+      {
+        "version_id": 2,
+        "version_key": "market-date-v2-2027-08-18",
+        "version_name": "market-date-v2-2027-08-18",
+        "metadata": {},
+        "created_at": "2026-09-05 07:46:07.213140"
+      }
+    ],
+    "scenarios": [
+      {
+        "scenario_id": 2,
+        "scenario_key": "DYNAMIC_RULES_20270818",
+        "scenario_version": "1",
+        "scenario_name": "Dynamic rules at 2027-08-18",
+        "scenario_kind": "rule",
+        "materialization_mode": "rules",
+        "base_market_data_datetime": "2027-08-18 00:00:00",
+        "trade_repository_snapshot_datetime": "2027-08-18 00:00:00",
+        "market_data_manipulations": [
+          {
+            "type": "spot_shift",
+            "shift_type": "percentage",
+            "value": 0.05,
+            "underlying_name": "UND_A HK",
+            "filter_conditions": null
+          },
+          {
+            "type": "vol_manipulation",
+            "shift_type": "absolute",
+            "value": 0.02,
+            "underlying_name": "UND_A HK",
+            "filter_conditions": null
+          }
+        ],
+        "market_data_snapshot": null,
+        "request_template": null,
+        "metadata": {
+          "description": "Dynamic relative spot and volatility rules evaluated at the scenario market-data date.",
+          "metadata": {}
+        }
+      },
+      {
+        "scenario_id": 1,
+        "scenario_key": "DYNAMIC_RULES_20270518",
+        "scenario_version": "1",
+        "scenario_name": "Dynamic rules at 2027-05-18",
+        "scenario_kind": "rule",
+        "materialization_mode": "rules",
+        "base_market_data_datetime": "2027-05-18 00:00:00",
+        "trade_repository_snapshot_datetime": "2027-05-18 00:00:00",
+        "market_data_manipulations": [
+          {
+            "type": "spot_shift",
+            "shift_type": "percentage",
+            "value": 0.05,
+            "underlying_name": "UND_A HK",
+            "filter_conditions": null
+          },
+          {
+            "type": "vol_manipulation",
+            "shift_type": "absolute",
+            "value": 0.02,
+            "underlying_name": "UND_A HK",
+            "filter_conditions": null
+          }
+        ],
+        "market_data_snapshot": null,
+        "request_template": null,
+        "metadata": {
+          "description": "Dynamic relative spot and volatility rules evaluated at the scenario market-data date.",
+          "metadata": {}
+        }
+      }
+    ]
+  }
+}

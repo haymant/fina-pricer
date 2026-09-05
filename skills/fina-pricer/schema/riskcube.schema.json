@@ -2,10 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "RiskCube",
   "type": "object",
-  "required": ["cube_type", "axes", "cells"],
+  "required": ["cube_type", "axes", "coordinate_field", "cells"],
   "properties": {
     "cube_type": {"type": "string", "enum": ["SpotCube", "VolCube", "IRCube", "FXCube", "SVICube", "RiskCube"]},
-    "axes": {"type": "array", "items": {"type": "string"}},
+    "axes": {"type": "array", "const": ["type", "underlying", "currency_pair", "expiry", "strike", "tenor", "temporal_role", "date", "surface_parameter"]},
+    "coordinate_field": {"type": "string", "const": "coordinates"},
     "valuation": {
       "type": "object",
       "required": ["pv_amount", "pv_currency", "price_pct_of_notional", "notional", "notional_currency"],
@@ -25,9 +26,10 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["rfk", "sensitivities", "method"],
+        "required": ["rfk", "coordinates", "sensitivities", "method"],
         "properties": {
           "rfk": {"type": "object"},
+          "coordinates": {"type": "object", "additionalProperties": true},
           "pv_amount": {"type": "number"},
           "price_pct_of_notional": {"type": "number"},
           "sensitivities": {

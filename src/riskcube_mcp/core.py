@@ -54,6 +54,19 @@ class UnwindMapRaw(BaseModel):
         return self
 
 
+RISK_CUBE_AXES = [
+    "type",
+    "underlying",
+    "currency_pair",
+    "expiry",
+    "strike",
+    "tenor",
+    "temporal_role",
+    "date",
+    "surface_parameter",
+]
+
+
 class RiskFactorKey(BaseModel):
     type: Literal["Spot", "Volatility", "InterestRate", "FXSpot", "SVIParameter"]
     underlying: str | None = None
@@ -64,6 +77,11 @@ class RiskFactorKey(BaseModel):
     temporal_role: str | None = None
     date: str | None = None
     surface_parameter: Literal["a", "b", "rho", "m", "sigma"] | None = None
+
+
+def _risk_cube_coordinates(rfk: RiskFactorKey) -> dict[str, Any]:
+    payload = rfk.model_dump(exclude_none=True)
+    return {axis: payload[axis] for axis in RISK_CUBE_AXES if axis in payload}
 
 
 class MarketPoint(BaseModel):
@@ -745,6 +763,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
         cells.append(
             {
                 "rfk": rfk.model_dump(exclude_none=True),
+                "coordinates": _risk_cube_coordinates(rfk),
                 "sensitivities": greeks,
                 "method": method,
                 "bump": bump,
@@ -811,6 +830,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
             first = (up - down) / (2.0 * bump) if bump else 0.0
             leg_cells.append({
                 "rfk": rfk.model_dump(exclude_none=True),
+                "coordinates": _risk_cube_coordinates(rfk),
                 "sensitivities": {
                     "delta": first if kind == "Spot" else 0.0,
                     "gamma": (up - 2.0 * leg_base.pv + down) / (bump * bump) if kind == "Spot" else 0.0,
@@ -863,7 +883,8 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
         "SensitivityResults": cells,
         "RiskCube": {
             "cube_type": cube_types.get(request.risk_factor_keys[0].type, "RiskCube"),
-            "axes": ["Underlying", "Expiry", "Strike", "RiskFactorType"],
+            "axes": RISK_CUBE_AXES,
+            "coordinate_field": "coordinates",
             "valuation": valuation,
             "cells": cells,
         },

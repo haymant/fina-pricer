@@ -40,6 +40,10 @@ def test_attachment_sample_fixture_prices_and_generates_riskcube() -> None:
     output = sensitivity(request)
     assert output["PV"] >= 0
     assert len(output["RiskCube"]["cells"]) == 4
+    assert output["RiskCube"]["axes"] == ["type", "underlying", "currency_pair", "expiry", "strike", "tenor", "temporal_role", "date", "surface_parameter"]
+    assert output["RiskCube"]["coordinate_field"] == "coordinates"
+    for cell in output["RiskCube"]["cells"]:
+        assert cell["coordinates"] == {key: value for key, value in cell["rfk"].items()}
     assert output["PV_amount"] == output["PV"]
     assert output["PV_currency"] == "USD"
     assert output["price_pct_of_notional"] == pytest.approx(output["PV"] / output["notional"] * 100.0)

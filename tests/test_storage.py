@@ -41,3 +41,19 @@ def test_batch_persists_instance_and_parquet_partition(tmp_path: Path) -> None:
     assert store.connection.execute("select count(*) from riskcube_instances where status = 'COMPLETED'").fetchone()[0] == 1
     assert store.connection.execute("select count(*) from riskcube_cells where scenario_id = ?", [summary["scenario_id"]]).fetchone()[0] == 4
     store.close()
+
+
+def test_configurable_s3_endpoint(monkeypatch) -> None:
+    import duckdb
+
+    from riskcube_mcp.gcs import configure_duckdb_gcs, gcs_status
+
+    monkeypatch.setenv("S3_API_KEY", "test-key")
+    monkeypatch.setenv("S3_API_SECRET", "test-secret")
+    monkeypatch.setenv("S3_BUCKET_NAME", "s3://test-bucket")
+    monkeypatch.setenv("S3_ENDPOINT", "storage.example.test")
+    connection = duckdb.connect(":memory:")
+    configure_duckdb_gcs(connection)
+    assert gcs_status()["endpoint"] == "storage.example.test"
+    assert gcs_status()["credentials_present"] is True
+    connection.close()

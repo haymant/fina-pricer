@@ -142,3 +142,12 @@ For range-accrual coupon schedules, provide `n1` and `n2` per period together wi
 The project includes a DuckDB/Parquet persistence layer in `src/riskcube_mcp/storage.py` and a production scenario builder in `src/riskcube_mcp/scenario_builder.py`. `ScenarioBuilder` supports materialized market-data snapshots, rule-based market-data manipulations, and a virtual `current_report` scenario template. `execute_scenario_batch` registers the scenario, coordinates a RiskCube instance, prices each request, stores flat cells in DuckDB, and writes a version/scenario/instance-partitioned Parquet file.
 
 The storage design is documented in [`docs/riskcube_storage.md`](docs/riskcube_storage.md). It separates `scenario_catalog`, `riskcube_instances`, `riskcube_partitions`, and `riskcube_cells`, while preserving JSON copies of RFKs, coordinates, sensitivities, valuation, and explainability for AI-oriented reconstruction. Scalar RFK axis columns are retained for DuckDB predicates and AG Grid server-side filtering.
+
+
+## Scenario, OLAP, and GCS MCP interfaces
+
+The MCP server now exposes scenario catalog tools: `scenario_create`, `scenario_get`, `scenario_list`, `scenario_update`, `scenario_delete`, and `scenario_trigger`. It also exposes the read-only `olap_query` tool for DuckDB grouping, pivoting, rollups, and window functions over the in-memory `riskcube_cells` table. The `gcs_read_parquet` tool reads configured-bucket Parquet objects through DuckDB S3 interoperability, while `gcs_configuration_status` returns only non-secret diagnostics.
+
+The matching reusable skills are packaged under `skills/fina-scenario`, `skills/fina-olap`, and `skills/fina-gcs`. Their MCP prompt counterparts are `fina_scenario_guidance`, `fina_olap_guidance`, and `fina_gcs_guidance`.
+
+Configure `S3_API_KEY`, `S3_API_SECRET`, and `S3_BUCKET_NAME` only through the deployment environment or a local gitignored `.env.local`. Set `S3_ENDPOINT` for a custom S3-compatible endpoint; the runtime defaults to `storage.googleapis.com` with path-style URLs and region `auto`. Credential values are never returned by health checks, MCP tools, skills, logs, or reports.

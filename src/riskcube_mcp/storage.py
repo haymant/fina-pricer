@@ -221,6 +221,36 @@ class RiskCubeStore:
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
         return self.connection.execute("SELECT * FROM read_parquet(?)" + where, [pattern, *params]).fetchall()
 
+    def get_scenario(self, scenario_id: str) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT scenario_id, scenario_version, scenario_name, scenario_kind, materialization_mode, base_market_data_datetime, trade_repository_snapshot_datetime, rules_json, market_data_snapshot_json, request_template_json, metadata_json FROM scenario_catalog WHERE scenario_id = ?",
+            [scenario_id],
+        ).fetchone()
+        if row is None:
+            return None
+        keys = ["scenario_id", "scenario_version", "scenario_name", "scenario_kind", "materialization_mode", "base_market_data_datetime", "trade_repository_snapshot_datetime", "market_data_manipulations", "market_data_snapshot", "request_template", "metadata"]
+        result = dict(zip(keys, row))
+        for key in ("market_data_manipulations", "market_data_snapshot", "request_template", "metadata"):
+            if isinstance(result[key], str):
+                result[key] = json.loads(result[key])
+        return result
+
+    def list_scenarios(self) -> list[dict[str, Any]]:
+        rows = self.connection.execute("SELECT scenario_id FROM scenario_catalog ORDER BY created_at DESC").fetchall()
+        scenarios: list[dict[str, Any]] = []
+        for row in rows:
+            scenario = self.get_scenario(str(row[0]))
+            if scenario is not None:
+                scenarios.append(scenario)
+        return scenarios
+
+    def delete_scenario(self, scenario_id: str) -> bool:
+        existing = self.get_scenario(scenario_id)
+        if existing is None:
+            return False
+        self.connection.execute("DELETE FROM scenario_catalog WHERE scenario_id = ?", [scenario_id])
+        return True
+
     def close(self) -> None:
         self.connection.close()
 

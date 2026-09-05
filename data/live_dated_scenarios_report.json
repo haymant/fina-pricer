@@ -1,0 +1,128 @@
+{
+  "endpoint": "https://fina-pricer.vercel.app/mcp",
+  "initialize": {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "protocolVersion": "2025-03-26",
+      "capabilities": {
+        "experimental": {},
+        "prompts": {
+          "listChanged": false
+        },
+        "resources": {
+          "subscribe": false,
+          "listChanged": false
+        },
+        "tools": {
+          "listChanged": false
+        }
+      },
+      "serverInfo": {
+        "name": "riskcube-pricing",
+        "version": "1.29.1"
+      }
+    }
+  },
+  "tool_names": [
+    "pricing_and_sensitivity",
+    "scenario_create",
+    "scenario_get",
+    "scenario_list",
+    "scenario_update",
+    "scenario_delete",
+    "version_list",
+    "scenario_trigger",
+    "olap_query",
+    "gcs_read_parquet",
+    "gcs_configuration_status"
+  ],
+  "prompt_names": [
+    "fina_scenario_guidance",
+    "fina_olap_guidance",
+    "fina_gcs_guidance"
+  ],
+  "versions_before": {
+    "content": [],
+    "structuredContent": {
+      "result": []
+    },
+    "isError": false
+  },
+  "created_scenarios": [
+    "Error executing tool scenario_create: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option.",
+    "Error executing tool scenario_create: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option."
+  ],
+  "scenarios_after": {
+    "scenario_id": 2,
+    "scenario_key": "LIVE_DYNAMIC_RULES_20270818",
+    "scenario_version": "1",
+    "scenario_name": "Live dynamic rules at 2027-08-18",
+    "scenario_kind": "rule",
+    "materialization_mode": "rules",
+    "base_market_data_datetime": "2027-08-18T00:00:00",
+    "trade_repository_snapshot_datetime": "2027-08-18T00:00:00",
+    "market_data_manipulations": [
+      {
+        "type": "spot_shift",
+        "shift_type": "percentage",
+        "value": 0.05,
+        "underlying_name": "UND_A HK"
+      },
+      {
+        "type": "vol_manipulation",
+        "shift_type": "absolute",
+        "value": 0.02,
+        "underlying_name": "UND_A HK"
+      }
+    ],
+    "market_data_snapshot": null,
+    "request_template": null,
+    "metadata": {
+      "description": "Live Vercel verification: +5% relative spot and +2 volatility points.",
+      "metadata": {}
+    }
+  },
+  "runs": [
+    "Error executing tool scenario_trigger: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option.",
+    "Error executing tool scenario_trigger: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option."
+  ],
+  "versions_after": {
+    "content": [],
+    "structuredContent": {
+      "result": []
+    },
+    "isError": false
+  },
+  "instance_query": {
+    "columns": [
+      "version_id",
+      "version_key",
+      "scenario_id",
+      "scenario_key",
+      "instance_id",
+      "status",
+      "instrument_count",
+      "cell_count"
+    ],
+    "rows": [],
+    "row_count": 0
+  },
+  "cell_query": {
+    "columns": [
+      "version_id",
+      "version_key",
+      "scenario_id",
+      "scenario_key",
+      "instrument_id",
+      "pv_amount",
+      "price_pct_of_notional",
+      "delta",
+      "vega",
+      "rho",
+      "theta"
+    ],
+    "rows": [],
+    "row_count": 0
+  }
+}

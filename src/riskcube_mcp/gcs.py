@@ -32,6 +32,7 @@ def gcs_configured() -> bool:
 
 def configure_duckdb_gcs(connection: duckdb.DuckDBPyConnection, *, secret_name: str = "fina_gcs") -> None:
     """Configure a DuckDB S3 secret from environment variables without logging them."""
+    _ensure_httpfs(connection)
     key_id = os.getenv("S3_API_KEY")
     secret = os.getenv("S3_API_SECRET")
     if not key_id or not secret:
@@ -45,6 +46,18 @@ def configure_duckdb_gcs(connection: duckdb.DuckDBPyConnection, *, secret_name: 
         f"ENDPOINT {_literal(endpoint)}, URL_STYLE 'path', REGION 'auto')"
     )
     connection.execute(sql)
+
+
+def _ensure_httpfs(connection: duckdb.DuckDBPyConnection) -> None:
+    """Load DuckDB httpfs using a writable runtime home on serverless platforms."""
+    home = os.getenv("DUCKDB_HOME_DIRECTORY", "/tmp/duckdb")
+    Path(home).mkdir(parents=True, exist_ok=True)
+    connection.execute(f"SET home_directory = {_literal(home)}")
+    try:
+        connection.execute("LOAD httpfs")
+    except Exception:
+        connection.execute("INSTALL httpfs")
+        connection.execute("LOAD httpfs")
 
 
 def configured_bucket() -> str:

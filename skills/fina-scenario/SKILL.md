@@ -33,3 +33,11 @@ Keep scenario keys and version keys immutable once used for a production batch. 
 A scenario trigger returns a RiskCube instance, not only a scalar report. Preserve the mapping `scenario_id -> instance_id -> Parquet partition`. Query cells by scenario and version before comparing risk. For AI analysis, reconstruct nested JSON from flat rows using `case_id`, `instrument_id`, coordinates, valuation, and sensitivity JSON.
 
 Never place credentials or access tokens in scenario definitions, request payloads, logs, or scenario metadata.
+
+## Unified FinA v1 contract
+
+The formal source of truth is `schema/scenario.schema.json`. Scenario management is separate from pricing: a scenario is a durable, versioned market-data definition, while `scenario_trigger` creates an immutable RiskCube instance. Always preserve the stable `scenario_id` key and the allocated integer catalog identifier returned by the server; do not silently mutate a scenario used by a completed batch.
+
+The canonical fields are `scenario_id`, `scenario_version`, `description`, `base_market_data_datetime`, `trade_repository_snapshot_datetime`, `materialization_mode`, and either `market_data_snapshot` or `market_data_manipulations`. Rule manipulation types are enumerated in the schema. Record the trade-repository snapshot time so FinA process replays can prove which trade population was priced.
+
+For scheduler integration, pass `scenario_id`, `scenario_version`, `eval_datetime`, and `market_data_date` as FinaProcess parameters. A trade lifecycle event must cause a new pricing thread or scenario batch, not an in-place rewrite of an existing RiskCube instance. The resulting chain is `trade event -> process/thread execution -> scenario trigger -> immutable instance_id -> OLAP query`.

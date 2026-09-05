@@ -47,10 +47,10 @@ The configured S3 interoperability key is not necessarily a gcloud OAuth credent
 
 ## Object layout
 
-Prefer versioned, scenario-partitioned objects such as:
+Prefer integer-key, versioned, scenario-partitioned objects such as:
 
 ```text
-gs://fina-riskcube/version=<version>/scenario_id=<scenario_id>/instance_id=<instance_id>.parquet
+gs://fina-riskcube/version_id=<version_id>/scenario_id=<scenario_id>/instance_id=<instance_id>.parquet
 ```
 
-Keep immutable partitions and write a new instance for retries or recalculation. Validate object existence and row counts after uploads. Preserve scenario, version, and instance identifiers in downstream results.
+Persist the human-readable `version_key` and `scenario_key` in the DuckDB catalogs and Parquet columns, but use integer IDs in object paths for compactness and partition pruning. Keep immutable partitions and write a new instance for retries or recalculation. Validate object existence and row counts after uploads. Preserve integer and human-readable identifiers in downstream results.

@@ -9,13 +9,14 @@ Use this skill when a request involves scenario management, market-data shocks, 
 
 ## MCP workflow
 
-1. Call `scenario_create` with a stable `scenario_id`, `scenario_version`, description, and either `market_data_snapshot` or `market_data_manipulations`.
-2. Call `scenario_get` or `scenario_list` to verify catalog state.
-3. Prepare `requests` as objects with `case_id` and a complete pricing request.
-4. Call `scenario_trigger` with `scenario_id`, `version`, and optional `batch_id`.
-5. Preserve the returned `instance_id`, `scenario_id`, `version`, `cell_count`, and Parquet partition paths for downstream OLAP.
+1. Call `scenario_create` with a stable `scenario_key` supplied as the request's `scenario_id`, `scenario_version`, description, and either `market_data_snapshot` or `market_data_manipulations`. The catalog persists the definition and allocates an integer `scenario_id` surrogate.
+2. Call `scenario_get` or `scenario_list` and retain both `scenario_id` and `scenario_key`. The integer is for joins and partition pruning; the key is for human governance and reproducibility.
+3. Prepare `requests` as objects with `case_id` and a complete pricing request. Reuse the same request set when promoting multiple scenarios.
+4. Call `scenario_trigger` once per scenario with the same `version`/`version_key`, a distinct `batch_id` or a common promotion batch, and the scenario's integer ID or stable key. The catalog allocates one integer `version_id` for the version key.
+5. Preserve `instance_id`, `version_id`, `version_key`, `scenario_id`, `scenario_key`, `cell_count`, and Parquet partition paths for downstream OLAP.
+6. Treat scenario definitions and version metadata as durable catalog records. A changed market snapshot or shock rule should create a new scenario key or version rather than silently changing a completed production run.
 
-Use `scenario_update` to replace a definition deliberately. Use `scenario_delete` only when no completed RiskCube instance depends on the scenario.
+Use `scenario_update` to replace a definition deliberately before production use. Use `scenario_delete` only when no completed RiskCube instance depends on the scenario. Completed instances remain immutable and are addressed by their `instance_id` and integer partition IDs.
 
 ## Scenario forms
 
@@ -25,7 +26,7 @@ Use `ScenarioBuilder.current_report()` or `VIRTUAL_CURRENT_REPORT` for a report 
 
 ## Governance
 
-Keep scenario IDs and versions immutable once used for a production batch. Treat a changed shock rule or market snapshot as a new version. Record source timestamps, trade-repository snapshot timestamps, and scenario descriptions. Keep the complete request and materialized market snapshot available for reproducibility.
+Keep scenario keys and version keys immutable once used for a production batch. Integer `scenario_id` and `version_id` values are generated automatically and remain stable for the life of the catalog. Treat a changed shock rule or market snapshot as a new scenario key or version key. Record source timestamps, trade-repository snapshot timestamps, and scenario descriptions. Keep the complete request and materialized market snapshot available for reproducibility.
 
 ## Explainability
 

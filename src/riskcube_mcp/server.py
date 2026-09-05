@@ -60,8 +60,11 @@ def scenario_create(scenario: dict[str, Any]) -> dict[str, Any]:
     )
     built.scenario.update(scenario)
     payload = built.build()
-    _store.register_scenario(payload)
-    return payload
+    numeric_id = _store.register_scenario(payload)
+    stored = _store.get_scenario(numeric_id)
+    if stored is None:
+        raise RuntimeError("scenario was registered but could not be read back")
+    return {**payload, "scenario_id": stored["scenario_id"], "scenario_key": stored["scenario_key"]}
 
 
 @mcp.tool()
@@ -88,17 +91,29 @@ def scenario_update(scenario: dict[str, Any]) -> dict[str, Any]:
 
 
 @mcp.tool()
-def scenario_delete(scenario_id: str) -> dict[str, Any]:
-    """Delete a scenario definition when no foreign-key dependency blocks it."""
-    return {"scenario_id": scenario_id, "deleted": _store.delete_scenario(scenario_id)}
+def scenario_delete(scenario_id: str | int) -> dict[str, Any]:
+    """Delete a scenario definition only when no materialized instance references it."""
+    scenario = _store.get_scenario(scenario_id)
+    if scenario is None:
+        return {"scenario_id": scenario_id, "deleted": False}
+    references = _store.connection.execute("SELECT count(*) FROM riskcube_instances WHERE scenario_id = ?", [scenario["scenario_id"]]).fetchone()[0]
+    if references:
+        raise ValueError(f"scenario {scenario_id} has {references} materialized instance(s); create a new scenario key instead")
+    return {"scenario_id": scenario["scenario_id"], "scenario_key": scenario["scenario_key"], "deleted": _store.delete_scenario(scenario["scenario_id"])}
+
+
+@mcp.tool()
+def version_list() -> list[dict[str, Any]]:
+    """List durable version catalog entries and their integer IDs."""
+    return _store.list_versions()
 
 
 @mcp.tool()
 def scenario_trigger(
-    scenario_id: str,
+    scenario_id: str | int,
     requests: list[dict[str, Any]],
     batch_id: str | None = None,
-    version: str = "1",
+    version: str | int = "1",
 ) -> dict[str, Any]:
     """Materialize and price a scenario batch, persisting a versioned RiskCube partition."""
     scenario = _store.get_scenario(scenario_id)
@@ -138,12 +153,12 @@ def gcs_configuration_status() -> dict[str, Any]:
 
 @mcp.prompt()
 def fina_scenario_guidance() -> str:
-    return "Use scenario_create/list/get/update/delete for catalog management, then scenario_trigger to materialize a versioned RiskCube partition. Use VIRTUAL_CURRENT_REPORT for a current-market report template."
+    return "Persist each scenario with scenario_create and verify scenario_id (integer surrogate) plus scenario_key (stable business key) using scenario_get/list. Persist and inspect versions with version_list; version_id is allocated once per version_key. Promote a batch by calling scenario_trigger once per scenario with the same version and requests, then retain instance_id and partition paths. Use VIRTUAL_CURRENT_REPORT only when a market-data resolver is configured."
 
 
 @mcp.prompt()
 def fina_olap_guidance() -> str:
-    return "Use olap_query with SELECT/WITH over riskcube_cells. Prefer grouped, pivoted, ROLLUP, and window-function queries over scalar extraction; use scenario, version, and coordinates as dimensions."
+    return "Use olap_query with SELECT/WITH over riskcube_cells. Filter first on integer version_id and scenario_id, then use version_key and scenario_key for display. Prefer grouped, pivoted, ROLLUP, and window-function queries over scalar extraction; use instance_id for immutable run tracing."
 
 
 @mcp.prompt()

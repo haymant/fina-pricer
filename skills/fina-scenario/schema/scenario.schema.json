@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/haymant/fina-pricer/blob/main/skills/fina-scenario/schema/scenario.schema.json",
+  "title": "FinA scenario definition",
+  "type": "object",
+  "required": ["scenario_id", "scenario_version", "description", "base_market_data_datetime", "trade_repository_snapshot_datetime"],
+  "properties": {
+    "scenario_id": {"type": "string"},
+    "scenario_version": {"type": "string"},
+    "description": {"type": "string"},
+    "base_market_data_datetime": {"type": "string"},
+    "trade_repository_snapshot_datetime": {"type": "string"},
+    "materialization_mode": {"enum": ["rules", "snapshot"]},
+    "market_data_snapshot": {"type": ["object", "null"]},
+    "market_data_manipulations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {"enum": ["spot_shift", "vol_manipulation", "fx_manipulation", "ir_manipulation", "dividend_manipulation", "fx_vol_manipulation"]},
+          "underlying_name": {"type": "string"},
+          "currency_pair": {"type": "string"},
+          "curve_name": {"type": "string"},
+          "filter_conditions": {"type": "object"}
+        },
+        "additionalProperties": true
+      }
+    },
+    "metadata": {"type": "object"}
+  },
+  "additionalProperties": false
+}

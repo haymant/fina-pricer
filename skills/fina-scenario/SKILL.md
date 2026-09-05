@@ -36,7 +36,7 @@ Never place credentials or access tokens in scenario definitions, request payloa
 
 ## Unified FinA v1 contract
 
-The formal source of truth is `schema/scenario.schema.json`. Scenario management is separate from pricing: a scenario is a durable, versioned market-data definition, while `scenario_trigger` creates an immutable RiskCube instance. Always preserve the stable `scenario_id` key and the allocated integer catalog identifier returned by the server; do not silently mutate a scenario used by a completed batch.
+The formal source of truth bundled with this skill is `skills/fina-scenario/schema/scenario.schema.json` (when installed as a skill, use `schema/scenario.schema.json`). Scenario management is separate from pricing: a scenario is a durable, versioned market-data definition, while `scenario_trigger` creates an immutable RiskCube instance. Always preserve the stable `scenario_id` key and the allocated integer catalog identifier returned by the server; do not silently mutate a scenario used by a completed batch.
 
 The canonical fields are `scenario_id`, `scenario_version`, `description`, `base_market_data_datetime`, `trade_repository_snapshot_datetime`, `materialization_mode`, and either `market_data_snapshot` or `market_data_manipulations`. Rule manipulation types are enumerated in the schema. Record the trade-repository snapshot time so FinA process replays can prove which trade population was priced.
 

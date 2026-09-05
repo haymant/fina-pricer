@@ -25,7 +25,7 @@ Completed cells are written to paths of the form:
 <root>/version=<version>/scenario_id=<scenario_id>/instance_id=<instance_id>.parquet
 ```
 
-This makes version and scenario natural partition-pruning keys. The instance remains the execution-level unit, allowing retries and multiple batches for the same scenario/version without overwriting historical materializations.
+This makes version and scenario natural partition-pruning keys. When `S3_BUCKET_NAME` or `RISKCUBE_PARQUET_ROOT` is an `s3://` or `gs://` URI, DuckDB writes the partition directly to that remote root using the configured S3 secret. On Vercel, if no remote root is configured, the service uses `/tmp/riskcube` only as an ephemeral fallback; it never attempts to create a read-only project-directory path. The instance remains the execution-level unit, allowing retries and multiple batches for the same scenario/version without overwriting historical materializations.
 
 ## Flat cell contract
 
@@ -44,8 +44,8 @@ The cell also contains `pv_amount`, `price_pct_of_notional`, `method`, `bump`, J
 A typical OLAP query is:
 
 ```sql
-SELECT scenario_id, underlying, type, AVG(sensitivities_json->>'delta') AS avg_delta
-FROM read_parquet('data/riskcube/version=*/scenario_id=*/*.parquet')
+SELECT scenario_id, underlying, type, AVG(CAST(sensitivities_json->>'delta' AS DOUBLE)) AS avg_delta
+FROM read_parquet('s3://fina-riskcube/version=*/scenario_id=*/*.parquet')
 WHERE version = 'v1'
 GROUP BY scenario_id, underlying, type;
 ```

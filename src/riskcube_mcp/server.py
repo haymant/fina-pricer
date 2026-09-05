@@ -13,10 +13,10 @@ from .scenario_builder import ScenarioBuilder
 from .storage import RiskCubeStore, execute_scenario_batch
 
 load_local_env()
-_store = RiskCubeStore(
-    os.getenv("RISKCUBE_DUCKDB_PATH", ":memory:"),
-    os.getenv("RISKCUBE_PARQUET_ROOT", "data/riskcube"),
-)
+_parquet_root = os.getenv("RISKCUBE_PARQUET_ROOT") or os.getenv("S3_BUCKET_NAME")
+if not _parquet_root:
+    _parquet_root = "/tmp/riskcube" if os.getenv("VERCEL") else "data/riskcube"
+_store = RiskCubeStore(os.getenv("RISKCUBE_DUCKDB_PATH", ":memory:"), _parquet_root)
 
 allowed_hosts = [
     host.strip()

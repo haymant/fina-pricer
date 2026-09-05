@@ -13,6 +13,7 @@ from typing import Any
 import duckdb
 
 from .core import PricingRequest, sensitivity
+from .gcs import configure_duckdb_gcs
 from .scenario_builder import materialize_request
 
 AXIS_COLUMNS = [
@@ -33,8 +34,18 @@ class RiskCubeStore:
 
     def __init__(self, database: str = ":memory:", parquet_root: str | Path = "data/riskcube") -> None:
         self.connection = duckdb.connect(database)
-        self.parquet_root = Path(parquet_root)
-        self.parquet_root.mkdir(parents=True, exist_ok=True)
+        root = str(parquet_root).rstrip("/")
+        self.parquet_uri: str | None = root if root.startswith(("s3://", "gs://")) else None
+        if self.parquet_uri is None:
+            candidate = Path(root)
+            try:
+                candidate.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                candidate = Path("/tmp/riskcube")
+                candidate.mkdir(parents=True, exist_ok=True)
+            self.parquet_root: Path | None = candidate
+        else:
+            self.parquet_root = None
         self.initialize()
 
     def initialize(self) -> None:
@@ -184,10 +195,17 @@ class RiskCubeStore:
         if row is None:
             raise KeyError(instance_id)
         _batch_id, version, scenario_id = row
-        partition_dir = self.parquet_root / f"version={_safe(version)}" / f"scenario_id={_safe(scenario_id)}"
-        partition_dir.mkdir(parents=True, exist_ok=True)
-        path = partition_dir / f"instance_id={_safe(instance_id)}.parquet"
-        sql_path = str(path).replace("'", "''")
+        relative_path = f"version={_safe(version)}/scenario_id={_safe(scenario_id)}/instance_id={_safe(instance_id)}.parquet"
+        if self.parquet_uri is not None:
+            configure_duckdb_gcs(self.connection)
+            path = f"{self.parquet_uri}/{relative_path}"
+        else:
+            if self.parquet_root is None:
+                raise RuntimeError("local parquet root is not configured")
+            partition_dir = self.parquet_root / f"version={_safe(version)}" / f"scenario_id={_safe(scenario_id)}"
+            partition_dir.mkdir(parents=True, exist_ok=True)
+            path = str(partition_dir / f"instance_id={_safe(instance_id)}.parquet")
+        sql_path = path.replace("'", "''")
         self.connection.execute(
             f"COPY (SELECT * FROM riskcube_cells WHERE instance_id = ?) TO '{sql_path}' (FORMAT PARQUET, COMPRESSION ZSTD)",
             [instance_id],
@@ -209,7 +227,13 @@ class RiskCubeStore:
         return self.connection.execute(sql, list(parameters or [])).fetchall()
 
     def query_parquet(self, version: str | None = None, scenario_id: str | None = None) -> list[tuple[Any, ...]]:
-        pattern = str(self.parquet_root / "version=*" / "scenario_id=*" / "*.parquet")
+        if self.parquet_uri is not None:
+            configure_duckdb_gcs(self.connection)
+            pattern = f"{self.parquet_uri}/version=*/scenario_id=*/*.parquet"
+        else:
+            if self.parquet_root is None:
+                return []
+            pattern = str(self.parquet_root / "version=*" / "scenario_id=*" / "*.parquet")
         clauses: list[str] = []
         params: list[Any] = []
         if version:

@@ -50,8 +50,60 @@
     "isError": false
   },
   "created_scenarios": [
-    "Error executing tool scenario_create: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option.",
-    "Error executing tool scenario_create: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option."
+    {
+      "scenario_id": 1,
+      "scenario_version": "1",
+      "scenario_name": "Live dynamic rules at 2027-05-18",
+      "scenario_kind": "rule",
+      "materialization_mode": "rules",
+      "base_market_data_datetime": "2027-05-18T00:00:00Z",
+      "trade_repository_snapshot_datetime": "2027-05-18T00:00:00Z",
+      "market_data_manipulations": [
+        {
+          "type": "spot_shift",
+          "shift_type": "percentage",
+          "value": 0.05,
+          "underlying_name": "UND_A HK"
+        },
+        {
+          "type": "vol_manipulation",
+          "shift_type": "absolute",
+          "value": 0.02,
+          "underlying_name": "UND_A HK"
+        }
+      ],
+      "ir_curve_assignment": [],
+      "metadata": {},
+      "description": "Live Vercel verification: +5% relative spot and +2 volatility points.",
+      "scenario_key": "LIVE_DYNAMIC_RULES_20270518"
+    },
+    {
+      "scenario_id": 2,
+      "scenario_version": "1",
+      "scenario_name": "Live dynamic rules at 2027-08-18",
+      "scenario_kind": "rule",
+      "materialization_mode": "rules",
+      "base_market_data_datetime": "2027-08-18T00:00:00Z",
+      "trade_repository_snapshot_datetime": "2027-08-18T00:00:00Z",
+      "market_data_manipulations": [
+        {
+          "type": "spot_shift",
+          "shift_type": "percentage",
+          "value": 0.05,
+          "underlying_name": "UND_A HK"
+        },
+        {
+          "type": "vol_manipulation",
+          "shift_type": "absolute",
+          "value": 0.02,
+          "underlying_name": "UND_A HK"
+        }
+      ],
+      "ir_curve_assignment": [],
+      "metadata": {},
+      "description": "Live Vercel verification: +5% relative spot and +2 volatility points.",
+      "scenario_key": "LIVE_DYNAMIC_RULES_20270818"
+    }
   ],
   "scenarios_after": {
     "scenario_id": 2,
@@ -84,15 +136,39 @@
     }
   },
   "runs": [
-    "Error executing tool scenario_trigger: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option.",
-    "Error executing tool scenario_trigger: An error occurred while trying to automatically install the required extension 'httpfs':\nCan't find the home directory at ''\nSpecify a home directory using the SET home_directory='/path/to/dir' option."
+    {
+      "instance_id": "e3646453-9745-4c96-8193-ddf13265305b",
+      "batch_id": "LIVE_DYNAMIC_RULES_PROMOTION_20260905",
+      "version_id": 1,
+      "version_key": "live-market-date-v1-20270518",
+      "scenario_id": 1,
+      "scenario_key": "LIVE_DYNAMIC_RULES_20270518",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "partitions": [
+        "s3://fina-riskcube/version_id=1/scenario_id=1/instance_id=e3646453-9745-4c96-8193-ddf13265305b.parquet"
+      ]
+    },
+    {
+      "instance_id": "3fc023f8-ae4e-40ea-aa7b-8838a3f385d2",
+      "batch_id": "LIVE_DYNAMIC_RULES_PROMOTION_20260905",
+      "version_id": 2,
+      "version_key": "live-market-date-v2-20270818",
+      "scenario_id": 2,
+      "scenario_key": "LIVE_DYNAMIC_RULES_20270818",
+      "instrument_count": 1,
+      "cell_count": 4,
+      "partitions": [
+        "s3://fina-riskcube/version_id=2/scenario_id=2/instance_id=3fc023f8-ae4e-40ea-aa7b-8838a3f385d2.parquet"
+      ]
+    }
   ],
   "versions_after": {
-    "content": [],
-    "structuredContent": {
-      "result": []
-    },
-    "isError": false
+    "version_id": 1,
+    "version_key": "live-market-date-v1-20270518",
+    "version_name": "live-market-date-v1-20270518",
+    "metadata": {},
+    "created_at": "2026-09-05T07:51:52.770699"
   },
   "instance_query": {
     "columns": [
@@ -105,8 +181,29 @@
       "instrument_count",
       "cell_count"
     ],
-    "rows": [],
-    "row_count": 0
+    "rows": [
+      [
+        1,
+        "live-market-date-v1-20270518",
+        1,
+        "LIVE_DYNAMIC_RULES_20270518",
+        "e3646453-9745-4c96-8193-ddf13265305b",
+        "COMPLETED",
+        1,
+        4
+      ],
+      [
+        2,
+        "live-market-date-v2-20270818",
+        2,
+        "LIVE_DYNAMIC_RULES_20270818",
+        "3fc023f8-ae4e-40ea-aa7b-8838a3f385d2",
+        "COMPLETED",
+        1,
+        4
+      ]
+    ],
+    "row_count": 2
   },
   "cell_query": {
     "columns": [
@@ -122,7 +219,34 @@
       "rho",
       "theta"
     ],
-    "rows": [],
-    "row_count": 0
+    "rows": [
+      [
+        1,
+        "live-market-date-v1-20270518",
+        1,
+        "LIVE_DYNAMIC_RULES_20270518",
+        "XS9999999999",
+        826773.8163651732,
+        107.37322290456794,
+        20962.798024126907,
+        -140015.97833062988,
+        -714203.7683358649,
+        30937.43775820243
+      ],
+      [
+        2,
+        "live-market-date-v2-20270818",
+        2,
+        "LIVE_DYNAMIC_RULES_20270818",
+        "XS9999999999",
+        834762.9184704969,
+        108.41076863253207,
+        4224.382412008045,
+        -18810.49897929188,
+        -623841.1495863693,
+        27103.835681983037
+      ]
+    ],
+    "row_count": 2
   }
 }

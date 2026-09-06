@@ -47,6 +47,10 @@ Use `schema/` as the source of truth when adding fields. Keep schemas JSON Schem
 
 The `schema/` directory contains the formal wire schemas. The `scripts/demo.py` file is the executable sample pipeline. Load `references/xad_quantlib_notes.md` when deciding whether a native XAD/QuantLibAAD bridge is installed or when documenting an AAD limitation.
 
+## Persistence boundary with fina-trade
+
+Keep large RiskCube cells, Parquet partitions, and scenario/version execution metadata in the pricer-owned S3-compatible store described by `docs/riskcube_storage.md`. Return a compact quote summary plus immutable `instance_id`/partition references to `fina-trade`; do not copy the full RiskCube into the trade Postgres database. The normalized trade flow is `RFQ -> pricing_and_sensitivity -> quote_persist(summary and references) -> trade_accept`, with each later re-price creating a new quote version rather than overwriting historical pricing.
+
 ## Barrier permutation and report workflow
 
 When the task asks for barrier, observation-date, memory, or moneyness analysis, execute the bundled scripts in this order:

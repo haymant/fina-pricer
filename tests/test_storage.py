@@ -174,3 +174,108 @@ def test_configurable_s3_endpoint(monkeypatch) -> None:
     assert gcs_status()["endpoint"] == "storage.example.test"
     assert gcs_status()["credentials_present"] is True
     connection.close()
+
+
+def test_slice_crud_validates_fields_and_restores(tmp_path: Path) -> None:
+    store = RiskCubeStore(":memory:", tmp_path / "riskcube")
+    stored = store.register_slice({
+        "slice_key": "big-fcns",
+        "slice_name": "Large FCN books",
+        "conditions": [
+            {"field": "product_type", "op": "eq", "value": "FCN"},
+            {"field": "notional", "op": "gte", "value": "100000"},
+        ],
+        "match_any": False,
+        "description": "FCNs above 100k notional",
+    })
+    assert stored["slice_id"] == 1
+    assert stored["conditions"] == [
+        {"field": "product_type", "op": "eq", "value": "FCN"},
+        {"field": "notional", "op": "gte", "value": "100000"},
+    ]
+    with pytest.raises(ValueError, match="unsupported slice field"):
+        store.register_slice({"slice_key": "bad", "conditions": [{"field": "not_a_field", "op": "eq", "value": 1}]})
+    with pytest.raises(ValueError, match="unsupported slice op"):
+        store.register_slice({"slice_key": "bad-op", "conditions": [{"field": "isin", "op": "glorp", "value": "XS"}]})
+    # upsert by key keeps the same numeric id
+    updated = store.register_slice({
+        "slice_key": "big-fcns",
+        "slice_name": "Renamed",
+        "conditions": [{"field": "isin", "op": "contains", "value": "XS"}],
+    })
+    assert updated["slice_id"] == 1
+    assert updated["slice_name"] == "Renamed"
+    assert store.list_slices()[0]["slice_key"] == "big-fcns"
+    assert store.delete_slice("big-fcns") is True
+    assert store.list_slices() == []
+    store.close()
+
+    # durability across restart
+    first = RiskCubeStore(":memory:", tmp_path / "riskcube")
+    first.register_slice({"slice_key": "durable", "slice_name": "Durable slice", "conditions": [{"field": "currency", "op": "eq", "value": "USD"}]})
+    first.close()
+    second = RiskCubeStore(":memory:", tmp_path / "riskcube")
+    restored = second.get_slice("durable")
+    assert restored is not None
+    assert restored["slice_id"] == 1
+    assert restored["conditions"] == [{"field": "currency", "op": "eq", "value": "USD"}]
+    second.close()
+
+
+def test_list_partitions_survives_restart(tmp_path: Path) -> None:
+    root = tmp_path / "riskcube"
+    store = RiskCubeStore(":memory:", root)
+    scenario = ScenarioBuilder("p-part", "2027-05-18T00:00:00Z", "2027-05-18T00:00:00Z", scenario_id="p-part").build()
+    summary = execute_scenario_batch([("case-1", PAYLOAD)], scenario, store, batch_id="p-1", version="snap-1")
+    store.close()
+
+    store2 = RiskCubeStore(":memory:", root)
+    partitions = store2.list_partitions()
+    assert len(partitions) == 1
+    entry = partitions[0]
+    assert entry["version_id"] == summary["version_id"]
+    assert entry["scenario_id"] == summary["scenario_id"]
+    assert entry["version_key"] == "snap-1"
+    assert entry["scenario_key"] == "p-part"
+    assert entry["cell_count"] == 4
+    assert entry["instance_count"] == 1
+    assert entry["source"] == "parquet"
+    assert len(store2.connection.execute("SELECT * FROM read_parquet(?)", [store2.partition_glob()]).fetchall()) == 4
+    store2.close()
+
+
+def test_partition_scoped_olap_reads_parquet_and_restores_memory(tmp_path: Path) -> None:
+    from riskcube_mcp import server
+
+    root = tmp_path / "riskcube"
+    store = RiskCubeStore(":memory:", root)
+    server._store.close()
+    server._store = store
+    scenario = ScenarioBuilder("olap-part", "2027-05-18T00:00:00Z", "2027-05-18T00:00:00Z", scenario_id="olap-part").build()
+    store.register_scenario(scenario)
+    summary = server.scenario_trigger("olap-part", [{"case_id": "case-1", "request": PAYLOAD}], batch_id="b-1", version="snap-1")
+
+    scoped = server.olap_query(
+        "SELECT count(*) AS n FROM riskcube_cells",
+        version_id=summary["version_id"],
+        scenario_id=summary["scenario_id"],
+    )
+    assert scoped["rows"] == [[4]]
+    by_key = server.olap_query(
+        "SELECT count(*) AS n FROM riskcube_cells",
+        version_key="snap-1",
+        scenario_key="olap-part",
+    )
+    assert by_key["rows"] == [[4]]
+    # unfiltered queries still hit the in-memory catalog after the temp view is dropped
+    in_memory = server.olap_query("SELECT count(*) AS n FROM riskcube_cells")
+    assert in_memory["rows"] == [[4]]
+
+    # scoping works even from a cold store (no in-memory cells) -> partition durability
+    store.close()
+    store2 = RiskCubeStore(":memory:", root)
+    server._store.close()
+    server._store = store2
+    cold = server.olap_query("SELECT count(*) AS n FROM riskcube_cells", version_id=1, scenario_id=1)
+    assert cold["rows"] == [[4]]
+    store2.close()

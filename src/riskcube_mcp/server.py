@@ -10,7 +10,12 @@ from starlette.responses import JSONResponse
 from .core import PricingRequest, sensitivity
 from .gcs import gcs_status, load_local_env, read_parquet_from_gcs
 from .scenario_builder import ScenarioBuilder
-from .storage import STORAGE_MODES, RiskCubeStore, execute_scenario_batch
+from .storage import (
+    STORAGE_MODES,
+    RiskCubeStore,
+    _drop_view_if_present,
+    execute_scenario_batch,
+)
 
 load_local_env()
 
@@ -133,7 +138,14 @@ def scenario_trigger(
     batch_id: str | None = None,
     version: str | int = "1",
 ) -> dict[str, Any]:
-    """Materialize and price a scenario batch, persisting a versioned RiskCube partition."""
+    """Materialize and price one scenario batch.
+
+    Requests is a list of {case_id, request} pricing batches; use one entry per
+    instrument in the target slice/selection. batch_id groups several instances
+    across slices or reruns into one logical run so cubes stay correlated;
+    when omitted a timestamp-based batch id is generated. Each call produces a
+    fresh instance whose cells are persisted as a version/scenario partition.
+    """
     scenario = _store.get_scenario(scenario_id)
     if scenario is None:
         raise ValueError(f"scenario not found: {scenario_id}")
@@ -142,17 +154,107 @@ def scenario_trigger(
 
 
 @mcp.tool()
-def olap_query(sql: str, parameters: list[Any] | None = None) -> dict[str, Any]:
-    """Run a read-only DuckDB OLAP query over riskcube_cells."""
+def olap_query(
+    sql: str,
+    parameters: list[Any] | None = None,
+    version_id: int | None = None,
+    scenario_id: int | None = None,
+    version_key: str | None = None,
+    scenario_key: str | None = None,
+) -> dict[str, Any]:
+    """Run a read-only DuckDB OLAP query over riskcube_cells.
+
+    By default queries the in-memory riskcube_cells catalog. Pass version_id /
+    scenario_id (or version_key / scenario_key) to query a persisted partition
+    directly from the Parquet store — this works after a server restart
+    without re-materialising anything. Both version and scenario must be given
+    together.
+    """
     normalized = sql.strip().lower()
     if not normalized.startswith(("select", "with")):
         raise ValueError("olap_query accepts only SELECT or WITH queries")
     forbidden = ("insert ", "update ", "delete ", "drop ", "create ", "alter ", "copy ", "install ", "load ")
     if any(token in normalized for token in forbidden) or ";" in normalized.rstrip(";"):
         raise ValueError("olap_query is read-only")
-    result = _store.connection.execute(sql, parameters or []).fetchall()
-    columns = [item[0] for item in _store.connection.description]
-    return {"columns": columns, "rows": [list(row) for row in result], "row_count": len(result)}
+
+    scoped = any(value is not None for value in (version_id, scenario_id, version_key, scenario_key))
+    if not scoped:
+        result = _store.connection.execute(sql, parameters or []).fetchall()
+        columns = [item[0] for item in _store.connection.description]
+        return {"columns": columns, "rows": [list(row) for row in result], "row_count": len(result)}
+
+    if version_id is None and version_key is not None:
+        version_id = _store.resolve_version_id(version_key)
+    if scenario_id is None and scenario_key is not None:
+        scenario_id = _store.resolve_scenario_id(scenario_key)
+    if version_id is None or scenario_id is None:
+        raise ValueError("partition-scoped olap_query requires both a version and a scenario (ids or keys)")
+
+    glob_pattern = _store.partition_glob(int(version_id), int(scenario_id))
+    quoted_glob = glob_pattern.replace("'", "''")
+    _drop_view_if_present(_store.connection, "riskcube_cells")
+    _store.connection.execute(
+        f"CREATE OR REPLACE TEMP VIEW riskcube_cells AS SELECT * FROM read_parquet('{quoted_glob}')",
+    )
+    try:
+        result = _store.connection.execute(sql, parameters or []).fetchall()
+        columns = [item[0] for item in _store.connection.description]
+        return {"columns": columns, "rows": [list(row) for row in result], "row_count": len(result)}
+    finally:
+        _drop_view_if_present(_store.connection, "riskcube_cells")
+
+
+@mcp.tool()
+def riskcube_partitions() -> list[dict[str, Any]]:
+    """List persisted RiskCube partitions (distinct version × scenario snapshots).
+
+    Derived from the hive-partitioned Parquet store so it stays correct after a
+    warm-instance restart. Each entry carries version_id/version_key,
+    scenario_id/scenario_key, cell_count, instance_count, first/last run times
+    and whether it was read from parquet or the in-memory catalog.
+    """
+    return _store.list_partitions()
+
+
+@mcp.tool()
+def slice_create(definition: dict[str, Any]) -> dict[str, Any]:
+    """Create or replace an instrument slice definition (filter over instruments)."""
+    stored = _store.register_slice(definition)
+    if stored is None:
+        raise RuntimeError("slice was registered but could not be read back")
+    return stored
+
+
+@mcp.tool()
+def slice_update(definition: dict[str, Any]) -> dict[str, Any]:
+    """Update an instrument slice definition; slice_id or slice_key identifies it."""
+    if not definition.get("slice_id") and not definition.get("slice_key"):
+        raise ValueError("slice_id or slice_key is required for update")
+    stored = _store.register_slice(definition)
+    if stored is None:
+        raise RuntimeError("slice was updated but could not be read back")
+    return stored
+
+
+@mcp.tool()
+def slice_get(slice_id: str | int) -> dict[str, Any]:
+    """Retrieve one instrument slice definition."""
+    result = _store.get_slice(slice_id)
+    if result is None:
+        raise ValueError(f"slice not found: {slice_id}")
+    return result
+
+
+@mcp.tool()
+def slice_list() -> list[dict[str, Any]]:
+    """List instrument slice definitions ordered newest first."""
+    return _store.list_slices()
+
+
+@mcp.tool()
+def slice_delete(slice_id: str | int) -> dict[str, Any]:
+    """Delete an instrument slice definition."""
+    return {"slice_id": slice_id, "deleted": _store.delete_slice(slice_id)}
 
 
 @mcp.tool()
@@ -194,12 +296,12 @@ def set_storage_mode(mode: str) -> dict[str, Any]:
 
 @mcp.prompt()
 def fina_scenario_guidance() -> str:
-    return "Persist each scenario with scenario_create and verify scenario_id (integer surrogate) plus scenario_key (stable business key) using scenario_get/list. Persist and inspect versions with version_list; version_id is allocated once per version_key. Promote a batch by calling scenario_trigger once per scenario with the same version and requests, then retain instance_id and partition paths. Use VIRTUAL_CURRENT_REPORT only when a market-data resolver is configured."
+    return "Persist each scenario with scenario_create and verify scenario_id (integer surrogate) plus scenario_key (stable business key) using scenario_get/list. Trigger a re-price with scenario_trigger, passing one {case_id, request} per target instrument; group instances across instruments and reruns with a shared batch_id, then retain instance_id and partition paths. Versions identify report-snapshot configurations and are auto-registered on first use. Define reusable instrument subsets as slices with slice_create (id, name, conditions over fields like isin/name/symbol/product_type/notional/currency) and list them with slice_list."
 
 
 @mcp.prompt()
 def fina_olap_guidance() -> str:
-    return "Use olap_query with SELECT/WITH over riskcube_cells. Filter first on integer version_id and scenario_id, then use version_key and scenario_key for display. Prefer grouped, pivoted, ROLLUP, and window-function queries over scalar extraction; use instance_id for immutable run tracing."
+    return "Use olap_query with SELECT/WITH over riskcube_cells. Filter first on integer version_id and scenario_id, then use version_key and scenario_key for display. Prefer grouped, pivoted, ROLLUP, and window-function queries over scalar extraction; use instance_id for immutable run tracing. To inspect a persisted partition after a restart, pass version_id + scenario_id (or their keys) to olap_query — it then reads the matching Parquet partition directly. Use riskcube_partitions to list which version×scenario partitions exist."
 
 
 @mcp.prompt()

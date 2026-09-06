@@ -30,6 +30,26 @@ AXIS_COLUMNS = [
 
 STORAGE_MODES = ("memory", "local", "s3")
 
+SLICE_FIELDS = (
+    "instrument_id",
+    "isin",
+    "name",
+    "symbol",
+    "product_type",
+    "family",
+    "group",
+    "strategy_id",
+    "portfolio",
+    "currency",
+    "notional",
+    "status",
+    "indicative",
+)
+
+SLICE_OPS = ("eq", "neq", "contains", "starts_with", "in", "not_in", "gt", "gte", "lt", "lte", "regex")
+
+SLICE_PARTITION_GLOB = "version_id=*/scenario_id=*/*.parquet"
+
 
 class RiskCubeStore:
     """In-memory DuckDB catalog with append-only Parquet RiskCube partitions.
@@ -116,6 +136,7 @@ class RiskCubeStore:
     def initialize(self) -> None:
         self.connection.sql("CREATE SEQUENCE IF NOT EXISTS version_id_seq START 1")
         self.connection.sql("CREATE SEQUENCE IF NOT EXISTS scenario_id_seq START 1")
+        self.connection.sql("CREATE SEQUENCE IF NOT EXISTS slice_id_seq START 1")
         self.connection.sql("""
             CREATE TABLE IF NOT EXISTS version_catalog (
                 version_id BIGINT PRIMARY KEY,
@@ -199,6 +220,19 @@ class RiskCubeStore:
                 explainability_json JSON,
                 valuation_json JSON,
                 created_at TIMESTAMP NOT NULL
+            )
+        """)
+        self.connection.sql("""
+            CREATE TABLE IF NOT EXISTS slice_catalog (
+                slice_id BIGINT PRIMARY KEY,
+                slice_key VARCHAR NOT NULL UNIQUE,
+                slice_name VARCHAR NOT NULL,
+                slice_kind VARCHAR NOT NULL,
+                match_any BOOLEAN NOT NULL DEFAULT false,
+                conditions_json JSON,
+                metadata_json JSON,
+                created_at TIMESTAMP NOT NULL,
+                updated_at TIMESTAMP NOT NULL
             )
         """)
 
@@ -393,6 +427,175 @@ class RiskCubeStore:
         rows = self.connection.execute("SELECT version_id, version_key, version_name, metadata_json, created_at FROM version_catalog ORDER BY version_id").fetchall()
         return [{"version_id": int(row[0]), "version_key": row[1], "version_name": row[2], "metadata": _parse_json(row[3]), "created_at": row[4]} for row in rows]
 
+    def register_slice(self, definition: dict[str, Any]) -> dict[str, Any]:
+        """Upsert a slice definition keyed by slice_key; returns the stored row."""
+        slice_key = str(definition.get("slice_key") or definition.get("slice_name") or definition.get("slice_id") or "slice")
+        existing = self.connection.execute("SELECT slice_id FROM slice_catalog WHERE slice_key = ?", [slice_key]).fetchone()
+        slice_id = int(existing[0]) if existing else int(self.connection.execute("SELECT nextval('slice_id_seq')").fetchone()[0])
+        conditions = definition.get("conditions") or []
+        if not isinstance(conditions, list):
+            raise TypeError("slice conditions must be a list of {field, op, value} objects")
+        for condition in conditions:
+            field = str(condition.get("field", ""))
+            op = str(condition.get("op", ""))
+            if field not in SLICE_FIELDS:
+                raise ValueError(f"unsupported slice field {field!r}; expected one of {', '.join(SLICE_FIELDS)}")
+            if op not in SLICE_OPS:
+                raise ValueError(f"unsupported slice op {op!r}; expected one of {', '.join(SLICE_OPS)}")
+        self.connection.execute("DELETE FROM slice_catalog WHERE slice_id = ?", [slice_id])
+        self.connection.execute(
+            """
+            INSERT INTO slice_catalog (slice_id, slice_key, slice_name, slice_kind, match_any, conditions_json, metadata_json, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                slice_id,
+                slice_key,
+                str(definition.get("slice_name") or slice_key),
+                str(definition.get("slice_kind", "filter")),
+                bool(definition.get("match_any", False)),
+                _json({"conditions": conditions}),
+                _json({"description": definition.get("description"), "metadata": definition.get("metadata", {})}),
+                _now(),
+                _now(),
+            ],
+        )
+        self._persist_catalogs()
+        return self.get_slice(slice_id) or {"slice_id": slice_id}
+
+    def get_slice(self, slice_id: str | int) -> dict[str, Any] | None:
+        row = self.connection.execute(
+            "SELECT slice_id, slice_key, slice_name, slice_kind, match_any, conditions_json, metadata_json, updated_at FROM slice_catalog WHERE slice_id = ? OR slice_key = ?",
+            [slice_id if str(slice_id).isdigit() else -1, str(slice_id)],
+        ).fetchone()
+        if row is None:
+            return None
+        conditions = _parse_json(row[5])
+        metadata = _parse_json(row[6])
+        return {
+            "slice_id": int(row[0]),
+            "slice_key": str(row[1]),
+            "slice_name": str(row[2]),
+            "slice_kind": str(row[3]),
+            "match_any": bool(row[4]),
+            "conditions": conditions.get("conditions", []) if isinstance(conditions, dict) else [],
+            "description": (metadata or {}).get("description") if isinstance(metadata, dict) else None,
+            "metadata": (metadata or {}).get("metadata", {}) if isinstance(metadata, dict) else {},
+            "updated_at": row[7],
+        }
+
+    def list_slices(self) -> list[dict[str, Any]]:
+        rows = self.connection.execute("SELECT slice_id FROM slice_catalog ORDER BY created_at DESC, slice_id").fetchall()
+        slices: list[dict[str, Any]] = []
+        for row in rows:
+            definition = self.get_slice(str(row[0]))
+            if definition is not None:
+                slices.append(definition)
+        return slices
+
+    def delete_slice(self, slice_id: str | int) -> bool:
+        existing = self.get_slice(slice_id)
+        if existing is None:
+            return False
+        self.connection.execute("DELETE FROM slice_catalog WHERE slice_id = ?", [existing["slice_id"]])
+        self._persist_catalogs()
+        return True
+
+    def partition_glob(self, version_id: int | None = None, scenario_id: int | None = None) -> str:
+        """Hive-partitioned glob over persisted instance parquets for a version/scenario partition."""
+        if self.mode == "memory":
+            raise RuntimeError("partition queries require persisted partitions (s3/local storage mode)")
+        pattern = SLICE_PARTITION_GLOB
+        if self.parquet_uri is not None:
+            configure_duckdb_gcs(self.connection)
+            root = f"{self.parquet_uri}/"
+        elif self.parquet_root is not None:
+            root = f"{self.parquet_root}/"
+        else:
+            raise RuntimeError("parquet storage is not configured")
+        if version_id is not None:
+            pattern = pattern.replace("version_id=*", f"version_id={int(version_id)}")
+        if scenario_id is not None:
+            pattern = pattern.replace("scenario_id=*", f"scenario_id={int(scenario_id)}")
+        return f"{root}{pattern}"
+
+    def resolve_version_id(self, version: str | int) -> int:
+        row = self.connection.execute("SELECT version_id FROM version_catalog WHERE version_id = ? OR version_key = ?", [version if str(version).isdigit() else -1, str(version)]).fetchone()
+        if row is None:
+            raise KeyError(f"version not found: {version}")
+        return int(row[0])
+
+    def resolve_scenario_id(self, scenario_id: str | int) -> int:
+        row = self.connection.execute("SELECT scenario_id FROM scenario_catalog WHERE scenario_id = ? OR scenario_key = ?", [scenario_id if str(scenario_id).isdigit() else -1, str(scenario_id)]).fetchone()
+        if row is None:
+            raise KeyError(f"scenario not found: {scenario_id}")
+        return int(row[0])
+
+    def list_partitions(self) -> list[dict[str, Any]]:
+        """List distinct version/scenario partitions from the persisted parquet store.
+
+        Survives warm-instance restarts: the inventory is derived from the
+        hive-partitioned instance parquets rather than the in-memory catalog.
+        In memory mode it falls back to the in-memory instance registry.
+        """
+        partitions: dict[tuple[int, int], dict[str, Any]] = {}
+        rows: list[tuple[Any, ...]] = []
+        if self.mode != "memory":
+            try:
+                glob = self.partition_glob()
+                rows = self.connection.execute(
+                    """
+                    SELECT version_id, scenario_id, COUNT(*) AS cell_count,
+                           COUNT(DISTINCT instance_id) AS instance_count,
+                           MIN(created_at) AS first_at, MAX(created_at) AS last_at
+                      FROM read_parquet(?, hive_partitioning = true)
+                     GROUP BY 1, 2
+                     ORDER BY 1 DESC, 2 DESC
+                    """,
+                    [glob],
+                ).fetchall()
+            except (duckdb.IOException, duckdb.CatalogException, duckdb.BinderException):
+                rows = []
+            for row in rows:
+                version_id, scenario_id = int(row[0]), int(row[1])
+                partitions[(version_id, scenario_id)] = {
+                    "version_id": version_id,
+                    "scenario_id": scenario_id,
+                    "cell_count": int(row[2]),
+                    "instance_count": int(row[3]),
+                    "first_at": row[4],
+                    "last_at": row[5],
+                    "source": "parquet",
+                }
+        else:
+            try:
+                rows = self.connection.execute(
+                    "SELECT version_id, scenario_id, SUM(cell_count), COUNT(*), MIN(created_at), MAX(created_at) FROM riskcube_instances GROUP BY 1, 2"
+                ).fetchall()
+            except duckdb.CatalogException:
+                rows = []
+            for row in rows:
+                version_id, scenario_id = int(row[0]), int(row[1])
+                partitions[(version_id, scenario_id)] = {
+                    "version_id": version_id,
+                    "scenario_id": scenario_id,
+                    "cell_count": int(row[2]),
+                    "instance_count": int(row[3]),
+                    "first_at": row[4],
+                    "last_at": row[5],
+                    "source": "memory",
+                }
+        for (version_id, scenario_id), entry in partitions.items():
+            version_key = self.connection.execute(
+                "SELECT version_key FROM version_catalog WHERE version_id = ?", [version_id]
+            ).fetchone()
+            scenario_key = self.connection.execute(
+                "SELECT scenario_key FROM scenario_catalog WHERE scenario_id = ?", [scenario_id]
+            ).fetchone()
+            entry["version_key"] = str(version_key[0]) if version_key else str(version_id)
+            entry["scenario_key"] = str(scenario_key[0]) if scenario_key else str(scenario_id)
+        return sorted(partitions.values(), key=lambda entry: (entry["last_at"] or ""), reverse=True)
+
     def _catalog_object(self, name: str) -> str:
         if self.mode == "memory":
             raise RuntimeError("catalog objects are not persisted in memory mode")
@@ -409,14 +612,14 @@ class RiskCubeStore:
             return
         if self.parquet_uri is not None:
             configure_duckdb_gcs(self.connection)
-        for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios")):
+        for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios"), ("slice_catalog", "slices")):
             path = self._catalog_object(name).replace("'", "''")
             self.connection.execute(f"COPY (SELECT * FROM {table}) TO '{path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
     def _restore_catalogs(self) -> None:
         if self.mode == "memory":
             return
-        for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios")):
+        for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios"), ("slice_catalog", "slices")):
             try:
                 if self.parquet_uri is not None:
                     configure_duckdb_gcs(self.connection)
@@ -426,8 +629,16 @@ class RiskCubeStore:
                     placeholders = ",".join(["?"] * len(rows[0]))
                     self.connection.execute(f"DELETE FROM {table}")
                     self.connection.executemany(f"INSERT INTO {table} VALUES ({placeholders})", rows)
-                    id_column = "version_id" if table == "version_catalog" else "scenario_id"
-                    sequence = "version_id_seq" if table == "version_catalog" else "scenario_id_seq"
+                    id_column = {
+                        "version_catalog": "version_id",
+                        "scenario_catalog": "scenario_id",
+                        "slice_catalog": "slice_id",
+                    }[table]
+                    sequence = {
+                        "version_catalog": "version_id_seq",
+                        "scenario_catalog": "scenario_id_seq",
+                        "slice_catalog": "slice_id_seq",
+                    }[table]
                     max_id = self.connection.execute(f"SELECT max({id_column}) FROM {table}").fetchone()[0]
                     if max_id is not None:
                         next_id = int(self.connection.execute(f"SELECT nextval('{sequence}')").fetchone()[0])
@@ -480,6 +691,15 @@ def execute_scenario_batch(
         "cell_count": cell_count,
         "partitions": partitions,
     }
+
+
+def _drop_view_if_present(connection: duckdb.DuckDBPyConnection, name: str) -> bool:
+    """Drop a (possibly temp) view shadowing a same-named table; tables are left intact."""
+    exists = connection.execute("SELECT count(*) FROM duckdb_views() WHERE view_name = ?", [name]).fetchone()
+    if not exists or int(exists[0]) == 0:
+        return False
+    connection.execute(f"DROP VIEW IF EXISTS {name}")
+    return True
 
 
 def _json(value: Any) -> str | None:

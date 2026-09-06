@@ -1,6 +1,18 @@
 # High-throughput RiskCube storage architecture
 
-The storage layer separates **scenario definitions**, **execution coordination**, and **materialized risk cells**. DuckDB is used as the in-memory orchestration and OLAP catalog. Parquet is used for append-only, compressed RiskCube partitions that can be queried by DuckDB, Python, or other analytical engines.
+The storage layer separates **scenario definitions**, **execution coordination**, and **materialized risk cells**. DuckDB is used as the in-memory orchestration and OLAP catalog. Parquet is used for append-only, compressed RiskCube partitions that can be queried by DuckDB, Python, or other analytical engines. By default each materialized instance is persisted as an S3-compatible Parquet partition (see `RISKCUBE_STORAGE_MODE` / `set_storage_mode`), while `memory` mode keeps everything in the in-memory catalog.
+
+## Storage modes
+
+`RiskCubeStore.mode` selects where partitions and catalogs are written:
+
+| mode | Behavior |
+|---|---|
+| `s3` (default) | Every finalized instance is unioned into a `version_id=<id>/scenario_id=<id>/instance_id=<id>.parquet` object in the configured bucket via DuckDB `httpfs`; the version and scenario catalogs are mirrored under `catalog/versions.parquet` and `catalog/scenarios.parquet`. |
+| `memory` | The DuckDB catalog keeps all cells and catalogs; no Parquet objects are written. Useful for ephemeral exploration or when bucket credentials are intentionally absent. |
+| `local` | Partitions and catalogs are written under a local directory. Primarily for development and tests. |
+
+The mode is selected at startup from the `RISKCUBE_STORAGE_MODE` environment variable (remote roots and Vercel default to `s3`) and can be changed at runtime via the `set_storage_mode` MCP tool. `storage_status` reports the active mode and non-secret bucket diagnostics. Cells already materialized in the in-memory catalog remain queryable when the mode changes; only the persistence target for new partitions is affected.
 
 ## Logical tables
 

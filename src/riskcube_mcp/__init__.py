@@ -2,10 +2,11 @@ from .core import PricingRequest, price_request, sensitivity
 from .gcs import configure_duckdb_gcs, gcs_status, read_parquet_from_gcs
 from .scenario_builder import ScenarioBuilder, materialize_request
 from .server import main, mcp, pricing_and_sensitivity
-from .storage import RiskCubeStore, execute_scenario_batch
+from .storage import STORAGE_MODES, RiskCubeStore, execute_scenario_batch
 
 __all__ = [
     "PricingRequest",
+    "STORAGE_MODES",
     "RiskCubeStore",
     "ScenarioBuilder",
     "configure_duckdb_gcs",

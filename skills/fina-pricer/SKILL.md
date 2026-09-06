@@ -51,6 +51,8 @@ The `schema/` directory contains the formal wire schemas. The `scripts/demo.py` 
 
 Keep large RiskCube cells, Parquet partitions, and scenario/version execution metadata in the pricer-owned S3-compatible store described by `docs/riskcube_storage.md`. Return a compact quote summary plus immutable `instance_id`/partition references to `fina-trade`; do not copy the full RiskCube into the trade Postgres database. The normalized trade flow is `RFQ -> pricing_and_sensitivity -> quote_persist(summary and references) -> trade_accept`, with each later re-price creating a new quote version rather than overwriting historical pricing.
 
+Cube persistence defaults to `s3` (each materialized instance becomes a partitioned Parquet object in the configured bucket). Use `storage_status` to read the active mode and masked bucket diagnostics, and `set_storage_mode` to switch to `memory` (in-memory DuckDB only) or back to `s3`. Never persist or return `S3_API_KEY`/`S3_API_SECRET`.
+
 ## Barrier permutation and report workflow
 
 When the task asks for barrier, observation-date, memory, or moneyness analysis, execute the bundled scripts in this order:

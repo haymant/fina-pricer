@@ -3,10 +3,19 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
+from riskcube_mcp.gcs import GCSConfigurationError
 from riskcube_mcp.scenario_builder import ScenarioBuilder, materialize_request
 from riskcube_mcp.storage import RiskCubeStore, execute_scenario_batch
 
 ROOT = Path(__file__).resolve().parents[1]
+
+PAYLOAD = json.loads((ROOT / "data" / "attachment_sample.json").read_text())
+
+
+def build_scenario(name: str) -> dict:
+    return ScenarioBuilder(name, "2027-05-18T00:00:00Z", "2027-05-18T00:00:00Z").build()
 
 
 def test_scenario_builder_materializes_spot_rule() -> None:
@@ -48,6 +57,56 @@ def test_batch_persists_instance_and_parquet_partition(tmp_path: Path) -> None:
     assert Path(summary["partitions"][0]).exists()
     assert store.connection.execute("select count(*) from riskcube_instances where status = 'COMPLETED'").fetchone()[0] == 1
     assert store.connection.execute("select count(*) from riskcube_cells where scenario_id = ?", [summary["scenario_id"]]).fetchone()[0] == 4
+    store.close()
+
+
+def test_storage_mode_memory_keeps_cells_but_writes_no_parquet(tmp_path: Path) -> None:
+    scenario = build_scenario("memory-scenario")
+    store = RiskCubeStore(":memory:", tmp_path / "riskcube", storage_mode="memory")
+    assert store.mode == "memory"
+    summary = execute_scenario_batch([("case-1", PAYLOAD)], scenario, store, batch_id="batch-mem", version="v1")
+    assert summary["cell_count"] == 4
+    assert summary["partitions"] == []
+    assert store.status()["parquet"]["catalog"] is None
+    assert store.connection.execute("select count(*) from riskcube_instances where status = 'COMPLETED'").fetchone()[0] == 1
+    assert store.connection.execute("select partition_count from riskcube_instances").fetchone()[0] == 0
+    assert store.connection.execute("select count(*) from riskcube_cells").fetchone()[0] == 4
+    assert not list((tmp_path / "riskcube").rglob("*.parquet"))
+    store.close()
+
+
+def test_storage_mode_toggles_and_validates(tmp_path: Path) -> None:
+    store = RiskCubeStore(":memory:", tmp_path / "riskcube")
+    assert store.mode == "local"
+    assert {"memory", "local", "s3"} <= set(store.status()["modes"])
+    toggled = store.set_mode("memory")
+    assert toggled["mode"] == "memory"
+    assert store.parquet_uri is None and store.parquet_root is None
+    restored = store.set_mode("local")
+    assert restored["mode"] == "local"
+    assert store.parquet_root is not None
+    with pytest.raises(ValueError, match="invalid storage mode"):
+        store.set_mode("galaxy")
+    store.close()
+
+
+def test_storage_mode_auto_derives_from_s3_uri() -> None:
+    store = RiskCubeStore(":memory:", "gs://fina-riskcube/")
+    assert store.mode == "s3"
+    assert store.parquet_uri == "gs://fina-riskcube"
+    assert store.parquet_root is None
+    store.close()
+
+    store_scheme = RiskCubeStore(":memory:", "s3://fina-riskcube/riskcube")
+    assert store_scheme.mode == "s3"
+    assert store_scheme.parquet_uri == "s3://fina-riskcube/riskcube"
+    store_scheme.close()
+
+
+def test_storage_mode_switch_rejects_s3_without_remote_root(tmp_path: Path) -> None:
+    store = RiskCubeStore(":memory:", tmp_path / "riskcube")
+    with pytest.raises(GCSConfigurationError, match="s3://"):
+        store.set_mode("s3")
     store.close()
 
 

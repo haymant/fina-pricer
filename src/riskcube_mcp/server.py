@@ -10,13 +10,31 @@ from starlette.responses import JSONResponse
 from .core import PricingRequest, sensitivity
 from .gcs import gcs_status, load_local_env, read_parquet_from_gcs
 from .scenario_builder import ScenarioBuilder
-from .storage import RiskCubeStore, execute_scenario_batch
+from .storage import STORAGE_MODES, RiskCubeStore, execute_scenario_batch
 
 load_local_env()
-_parquet_root = os.getenv("RISKCUBE_PARQUET_ROOT") or os.getenv("S3_BUCKET_NAME")
-if not _parquet_root:
-    _parquet_root = "/tmp/riskcube" if os.getenv("VERCEL") else "data/riskcube"
-_store = RiskCubeStore(os.getenv("RISKCUBE_DUCKDB_PATH", ":memory:"), _parquet_root)
+
+
+def _runtime_root() -> str:
+    return (os.getenv("RISKCUBE_PARQUET_ROOT") or os.getenv("S3_BUCKET_NAME") or "").strip() or (
+        "/tmp/riskcube" if os.getenv("VERCEL") else "data/riskcube"
+    )
+
+
+def _resolve_storage_mode(root: str) -> str:
+    """Return the effective persistence mode: env override wins, remote uris and Vercel default to s3."""
+    env_mode = os.getenv("RISKCUBE_STORAGE_MODE")
+    if env_mode in STORAGE_MODES:
+        return env_mode
+    bucket_or_uri = (os.getenv("RISKCUBE_PARQUET_ROOT") or os.getenv("S3_BUCKET_NAME") or "").strip()
+    if bucket_or_uri.startswith(("s3://", "gs://")) or (bucket_or_uri and os.getenv("VERCEL")):
+        return "s3"
+    return "local"
+
+
+_parquet_root = _runtime_root()
+_default_storage_mode = _resolve_storage_mode(_parquet_root)
+_store = RiskCubeStore(os.getenv("RISKCUBE_DUCKDB_PATH", ":memory:"), _parquet_root, storage_mode=_default_storage_mode)
 
 allowed_hosts = [
     host.strip()
@@ -34,7 +52,7 @@ mcp = FastMCP(
 
 @mcp.custom_route("/healthz", methods=["GET"])
 async def healthz(_request: Any) -> JSONResponse:
-    return JSONResponse({"status": "ok", "service": "riskcube-pricing", "gcs": gcs_status()})
+    return JSONResponse({"status": "ok", "service": "riskcube-pricing", "gcs": gcs_status(), "storage_mode": _store.mode})
 
 
 app = mcp.streamable_http_app()
@@ -151,6 +169,29 @@ def gcs_configuration_status() -> dict[str, Any]:
     return gcs_status()
 
 
+@mcp.tool()
+def storage_status() -> dict[str, Any]:
+    """Return the current cube persistence mode and non-secret storage diagnostics.
+
+    mode is one of: s3 (default, persists cells + catalogs as Parquet in the
+    configured bucket), memory (keeps everything in the DuckDB catalog), or
+    local (dev-only filesystem root).
+    """
+    return {**_store.status(), "default_mode": _default_storage_mode, "gcs": gcs_status()}
+
+
+@mcp.tool()
+def set_storage_mode(mode: str) -> dict[str, Any]:
+    """Switch cube persistence to 's3' (Parquet in the configured bucket), 'memory', or 'local'.
+
+    Cells already materialized in the in-memory catalog remain queryable; only
+    the persistence target for new partitions is changed.
+    """
+    previous = _store.mode
+    status = _store.set_mode(mode)
+    return {**status, "previous_mode": previous, "gcs": gcs_status()}
+
+
 @mcp.prompt()
 def fina_scenario_guidance() -> str:
     return "Persist each scenario with scenario_create and verify scenario_id (integer surrogate) plus scenario_key (stable business key) using scenario_get/list. Persist and inspect versions with version_list; version_id is allocated once per version_key. Promote a batch by calling scenario_trigger once per scenario with the same version and requests, then retain instance_id and partition paths. Use VIRTUAL_CURRENT_REPORT only when a market-data resolver is configured."
@@ -163,7 +204,7 @@ def fina_olap_guidance() -> str:
 
 @mcp.prompt()
 def fina_gcs_guidance() -> str:
-    return "Use gcs_configuration_status for masked diagnostics and gcs_read_parquet for configured-bucket reads. Never print, return, or persist S3_API_KEY or S3_API_SECRET."
+    return "Use gcs_configuration_status for masked diagnostics and gcs_read_parquet for configured-bucket reads. Use storage_status for the current persistence mode and set_storage_mode to toggle between 's3' (default) and 'memory'. Never print, return, or persist S3_API_KEY or S3_API_SECRET."
 
 
 def main() -> None:

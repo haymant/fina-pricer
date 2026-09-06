@@ -143,10 +143,12 @@ The project includes a DuckDB/Parquet persistence layer in `src/riskcube_mcp/sto
 
 The storage design is documented in [`docs/riskcube_storage.md`](docs/riskcube_storage.md). It separates `scenario_catalog`, `riskcube_instances`, `riskcube_partitions`, and `riskcube_cells`, while preserving JSON copies of RFKs, coordinates, sensitivities, valuation, and explainability for AI-oriented reconstruction. Scalar RFK axis columns are retained for DuckDB predicates and AG Grid server-side filtering.
 
+Persistence is controlled by the `RISKCUBE_STORAGE_MODE` environment variable (`s3` by default, or `memory` / `local`). Frontend consumers can toggle it at runtime with the `storage_status` and `set_storage_mode` MCP tools rather than requiring a redeploy. The UI persists the user's preference and re-applies it on subsequent visits.
 
-## Scenario, OLAP, and GCS MCP interfaces
 
-The MCP server now exposes scenario catalog tools: `scenario_create`, `scenario_get`, `scenario_list`, `scenario_update`, `scenario_delete`, and `scenario_trigger`. It also exposes the read-only `olap_query` tool for DuckDB grouping, pivoting, rollups, and window functions over the in-memory `riskcube_cells` table. The `gcs_read_parquet` tool reads configured-bucket Parquet objects through DuckDB S3 interoperability, while `gcs_configuration_status` returns only non-secret diagnostics.
+## Scenario, OLAP, and storage MCP interfaces
+
+The MCP server now exposes scenario catalog tools: `scenario_create`, `scenario_get`, `scenario_list`, `scenario_update`, `scenario_delete`, and `scenario_trigger`. It also exposes the read-only `olap_query` tool for DuckDB grouping, pivoting, rollups, and window functions over the in-memory `riskcube_cells` table. The `gcs_read_parquet` tool reads configured-bucket Parquet objects through DuckDB S3 interoperability, while `gcs_configuration_status` returns only non-secret diagnostics. `storage_status` reports the active persistence mode and non-secret bucket details; `set_storage_mode` switches between `s3` (write each materialized partition plus the version/scenario catalogs as Parquet into the configured bucket), `memory` (keep cells and catalogs in the in-memory DuckDB catalog only), and `local` (development filesystem).
 
 The matching reusable skills are packaged under `skills/fina-scenario`, `skills/fina-olap`, and `skills/fina-gcs`. Their MCP prompt counterparts are `fina_scenario_guidance`, `fina_olap_guidance`, and `fina_gcs_guidance`.
 

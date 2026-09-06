@@ -13,7 +13,7 @@ from typing import Any
 import duckdb
 
 from .core import PricingRequest, sensitivity
-from .gcs import configure_duckdb_gcs
+from .gcs import GCSConfigurationError, configure_duckdb_gcs
 from .scenario_builder import materialize_request
 
 AXIS_COLUMNS = [
@@ -28,26 +28,90 @@ AXIS_COLUMNS = [
     "surface_parameter",
 ]
 
+STORAGE_MODES = ("memory", "local", "s3")
+
 
 class RiskCubeStore:
-    """In-memory DuckDB catalog with append-only Parquet RiskCube partitions."""
+    """In-memory DuckDB catalog with append-only Parquet RiskCube partitions.
 
-    def __init__(self, database: str = ":memory:", parquet_root: str | Path = "data/riskcube") -> None:
+    ``mode`` selects where materialized RiskCube partitions and catalogs are
+    persisted:
+
+    - ``memory`` — keep cells/catalogs in the in-memory DuckDB catalog only; no
+      Parquet files are written and catalogs are not restored from disk/bucket.
+    - ``local``  — write Parquet partitions and catalogs under a local directory.
+    - ``s3``     — write Parquet partitions and catalogs to an S3-compatible
+      bucket (``s3://`` / ``gs://`` root via DuckDB httpfs, default mode when
+      a remote root is configured).
+    """
+
+    def __init__(
+        self,
+        database: str = ":memory:",
+        parquet_root: str | Path = "data/riskcube",
+        storage_mode: str | None = None,
+    ) -> None:
         self.connection = duckdb.connect(database)
-        root = str(parquet_root).rstrip("/")
-        self.parquet_uri: str | None = root if root.startswith(("s3://", "gs://")) else None
-        if self.parquet_uri is None:
-            candidate = Path(root)
+        self._root_reference = str(parquet_root).rstrip("/")
+        self.parquet_uri: str | None = None
+        self.parquet_root: Path | None = None
+        self.mode = storage_mode or self._derive_mode(self._root_reference)
+        if self.mode not in STORAGE_MODES:
+            raise ValueError(f"invalid storage mode {self.mode!r}; expected one of {', '.join(STORAGE_MODES)}")
+        self._apply_storage_mode()
+        self.initialize()
+        if self.mode != "memory":
+            self._restore_catalogs()
+
+    @staticmethod
+    def _derive_mode(root: str) -> str:
+        return "s3" if root.startswith(("s3://", "gs://")) else "local"
+
+    def _apply_storage_mode(self) -> None:
+        if self.mode == "memory":
+            self.parquet_uri = None
+            self.parquet_root = None
+        elif self.mode == "s3":
+            self.parquet_uri = self._root_reference
+            self.parquet_root = None
+        else:
+            self.parquet_uri = None
+            candidate = Path(self._root_reference)
             try:
                 candidate.mkdir(parents=True, exist_ok=True)
             except OSError:
                 candidate = Path("/tmp/riskcube")
                 candidate.mkdir(parents=True, exist_ok=True)
-            self.parquet_root: Path | None = candidate
-        else:
-            self.parquet_root = None
-        self.initialize()
-        self._restore_catalogs()
+            self.parquet_root = candidate
+
+    def set_mode(self, mode: str) -> dict[str, Any]:
+        """Switch persistence between memory/local/s3 on the same catalog."""
+        if mode not in STORAGE_MODES:
+            raise ValueError(f"invalid storage mode {mode!r}; expected one of {', '.join(STORAGE_MODES)}")
+        if mode == self.mode:
+            return self.status()
+        if mode == "s3" and not self._root_reference.startswith(("s3://", "gs://")):
+            raise GCSConfigurationError(
+                "S3 storage requires an s3:// or gs:// parquet root (configure RISKCUBE_PARQUET_ROOT or S3_BUCKET_NAME)"
+            )
+        self.mode = mode
+        self._apply_storage_mode()
+        return self.status()
+
+    def status(self) -> dict[str, Any]:
+        """Return the current mode and non-secret persistence details."""
+        return {
+            "mode": self.mode,
+            "modes": list(STORAGE_MODES),
+            "parquet": {
+                "uri": self.parquet_uri,
+                "root": str(self.parquet_root) if self.parquet_root else None,
+                "catalog": self._catalog_object("versions") if self.mode != "memory" else None,
+                "partition_pattern": (
+                    f"{self.parquet_uri}/version_id=*/scenario_id=*/*.parquet" if self.parquet_uri else None
+                ),
+            },
+        }
 
     def initialize(self) -> None:
         self.connection.sql("CREATE SEQUENCE IF NOT EXISTS version_id_seq START 1")
@@ -237,6 +301,14 @@ class RiskCubeStore:
         if row is None:
             raise KeyError(instance_id)
         _batch_id, version_id, scenario_id = row
+        count_row = self.connection.execute("SELECT count(*) FROM riskcube_cells WHERE instance_id = ?", [instance_id]).fetchone()
+        count = int(count_row[0]) if count_row is not None else 0
+        if self.mode == "memory":
+            self.connection.execute(
+                "UPDATE riskcube_instances SET status = ?, completed_at = ?, cell_count = ?, partition_count = 0 WHERE instance_id = ?",
+                [status, _now(), count, instance_id],
+            )
+            return []
         relative_path = f"version_id={int(version_id)}/scenario_id={int(scenario_id)}/instance_id={_safe(instance_id)}.parquet"
         if self.parquet_uri is not None:
             configure_duckdb_gcs(self.connection)
@@ -252,8 +324,6 @@ class RiskCubeStore:
             f"COPY (SELECT * FROM riskcube_cells WHERE instance_id = ?) TO '{sql_path}' (FORMAT PARQUET, COMPRESSION ZSTD)",
             [instance_id],
         )
-        count_row = self.connection.execute("SELECT count(*) FROM riskcube_cells WHERE instance_id = ?", [instance_id]).fetchone()
-        count = int(count_row[0]) if count_row is not None else 0
         partition_id = str(uuid.uuid4())
         self.connection.execute(
             "INSERT INTO riskcube_partitions VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -269,6 +339,8 @@ class RiskCubeStore:
         return self.connection.execute(sql, list(parameters or [])).fetchall()
 
     def query_parquet(self, version: str | int | None = None, scenario_id: str | int | None = None) -> list[tuple[Any, ...]]:
+        if self.mode == "memory":
+            return []
         if self.parquet_uri is not None:
             configure_duckdb_gcs(self.connection)
             pattern = f"{self.parquet_uri}/version_id=*/scenario_id=*/*.parquet"
@@ -322,6 +394,8 @@ class RiskCubeStore:
         return [{"version_id": int(row[0]), "version_key": row[1], "version_name": row[2], "metadata": _parse_json(row[3]), "created_at": row[4]} for row in rows]
 
     def _catalog_object(self, name: str) -> str:
+        if self.mode == "memory":
+            raise RuntimeError("catalog objects are not persisted in memory mode")
         if self.parquet_uri is not None:
             return f"{self.parquet_uri}/catalog/{name}.parquet"
         if self.parquet_root is None:
@@ -331,6 +405,8 @@ class RiskCubeStore:
         return str(directory / f"{name}.parquet")
 
     def _persist_catalogs(self) -> None:
+        if self.mode == "memory":
+            return
         if self.parquet_uri is not None:
             configure_duckdb_gcs(self.connection)
         for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios")):
@@ -338,6 +414,8 @@ class RiskCubeStore:
             self.connection.execute(f"COPY (SELECT * FROM {table}) TO '{path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
     def _restore_catalogs(self) -> None:
+        if self.mode == "memory":
+            return
         for table, name in (("version_catalog", "versions"), ("scenario_catalog", "scenarios")):
             try:
                 if self.parquet_uri is not None:

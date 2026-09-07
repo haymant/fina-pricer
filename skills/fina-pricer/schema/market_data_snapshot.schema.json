@@ -5,6 +5,20 @@
   "properties": {
     "spot_data": {"type": "array", "items": {"$ref": "#/$defs/marketPoint"}},
     "vol_data": {"type": "array", "items": {"$ref": "#/$defs/marketPoint"}},
+    "vol_surfaces": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["underlying", "strikes", "maturities", "vols"],
+        "properties": {
+          "underlying": {"type": "string"},
+          "strikes": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}},
+          "maturities": {"type": "array", "items": {}},
+          "vols": {"type": "array", "items": {"type": "array", "items": {"type": "number", "exclusiveMinimum": 0}}}
+        },
+        "additionalProperties": true
+      }
+    },
     "ir_data": {"type": "array", "items": {"$ref": "#/$defs/marketPoint"}},
     "fx_data": {"type": "array", "items": {"$ref": "#/$defs/marketPoint"}}
   },

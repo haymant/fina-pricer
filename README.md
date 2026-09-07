@@ -126,6 +126,8 @@ This mode is differentiable but not exact. Smaller widths approach the hard-barr
 
 The service returns both commonly used valuation conventions. `PV_amount` is the absolute present value in the instrument payment currency; `price_pct_of_notional` is the clean normalized price quoted as a percentage of notional, calculated as `PV_amount / notional * 100`. Under this convention, `100.0` means par and `105.0` means 105% of notional. The legacy `PV` field remains available as an alias of `PV_amount` for backward compatibility.
 
+`MarketDataSnapshot.vol_surfaces` accepts one grid per underlying with `strikes`, `maturities`, and a row-major `vols` matrix. Maturities may be ISO dates or numeric date serials. The engine interpolates the grid at the underlying’s actual `strikePrice` and product expiry; `vol_data` single-IV points remain a fallback only.
+
 The same fields are available in `RiskCube.valuation`, and each RiskCube cell carries `pv_amount` and `price_pct_of_notional`. Standard errors are returned as both `PV_stderr_amount` and `PV_stderr_pct_of_notional`. The term **price** should be reserved for the normalized percentage quote, while **PV amount**, **valuation amount**, or **redemption value** should be used for currency-denominated amounts.
 
 ## Common economics and leg decomposition

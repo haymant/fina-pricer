@@ -5,6 +5,7 @@
   "required": ["instrument_state", "applied_fixings", "adjusted_underlyings"],
   "properties": {
     "instrument_state": {"type": "string"},
+    "already_knock_in": {"type": "boolean"},
     "applied_fixings": {"type": "array", "items": {"type": "string", "format": "date"}},
     "adjusted_underlyings": {
       "type": "array",

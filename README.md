@@ -136,6 +136,8 @@ The response contains `LegResults`, keyed by leg type. Each entry reports the le
 
 For range-accrual coupon schedules, provide `n1` and `n2` per period together with `fixed_n1_periods`, `range_lower`, and `range_upper`. `accruals` is the preferred per-period rate array and can represent a zero-rate first period; `period_coupon_rates` remains a backward-compatible alias. Past `N1` values are treated as realized, while future `N1` is generated pathwise from the fraction of simulated observations inside the range and scaled to the scheduled `N2`. Each period uses `accrual[i] × N1_path / N2`, with unpaid amounts carried under memory. When `payment_dates` are supplied, `coupon_paid` reports only realized coupons and forward coupons are valued separately in the coupon leg. The response records per-period accrual rate, N1/N2, realized/forward status, coupon amount, and discounted forward value under `explainability.coupon_state.coupon_schedule`.
 
+For an instrument whose lifecycle says it is already knocked in, set `UpdatedLifecycle.already_knock_in=true`. The FCN downside put leg is then active immediately even if no new KI barrier is present in the request. An explicitly defined short intrinsic-option leg is reported with a negative PV; this avoids the prior zero-PV result caused by waiting for a simulated future KI event.
+
 
 ## High-throughput scenario and RiskCube storage
 

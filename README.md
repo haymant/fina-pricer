@@ -130,6 +130,8 @@ The service returns both commonly used valuation conventions. `PV_amount` is the
 
 Lifecycle and schedules are leg-specific when supplied under `Legs`. In particular, coupon KI is opt-in through `ki_enabled`; a product-level `UpdatedLifecycle.already_knock_in` does not implicitly suppress coupons. Coupon `observation_dates` and `payment_dates` may differ from the put leg and override the aggregate accrual schedule. For delivery-style FCNs, a put leg can specify `reference_price`, `strike_ratio`, and `settlement: "delivery"` to represent a reference-price strike-ratio payoff.
 
+Put-leg KI monitoring is explicit: `ki_monitoring: "AKI"` uses all simulated monitoring dates, while `ki_monitoring: "EKI"` checks only the final fixing date or the final entry in `schedule.fixing_dates`. EKI is a discontinuous event-state payoff and is valued through the Monte Carlo path engine rather than the smooth QuantLib analytic shortcut.
+
 The same fields are available in `RiskCube.valuation`, and each RiskCube cell carries `pv_amount` and `price_pct_of_notional`. Standard errors are returned as both `PV_stderr_amount` and `PV_stderr_pct_of_notional`. The term **price** should be reserved for the normalized percentage quote, while **PV amount**, **valuation amount**, or **redemption value** should be used for currency-denominated amounts.
 
 ## Common economics and leg decomposition

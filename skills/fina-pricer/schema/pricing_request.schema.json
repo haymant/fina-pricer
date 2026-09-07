@@ -41,6 +41,7 @@
           "pay_if_ki": {"type": "boolean"},
           "ki_enabled": {"type": "boolean"},
           "already_knock_in": {"type": "boolean"},
+          "ki_monitoring": {"enum": ["EKI", "AKI"], "default": "AKI"},
           "barriers": {"type": "array", "items": {"$ref": "#/definitions/barrier"}},
           "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
           "payment_dates": {"type": "array", "items": {"type": "string", "format": "date"}},

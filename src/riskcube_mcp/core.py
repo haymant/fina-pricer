@@ -239,6 +239,7 @@ class LegDefinition(BaseModel):
     pay_if_ki: bool | None = None
     ki_enabled: bool | None = None
     already_knock_in: bool | None = None
+    ki_monitoring: Literal["EKI", "AKI"] = "AKI"
     barriers: list[BarrierSpec] = Field(default_factory=list)
     schedule: LegSchedule | None = None
     observation_dates: list[str] = Field(default_factory=list)
@@ -489,7 +490,7 @@ def _leg_of_type(request: PricingRequest, leg_type: str) -> LegDefinition | None
 def _leg_dates(leg: LegDefinition | None, field: str) -> list[str]:
     if leg is None:
         return []
-    direct = getattr(leg, field)
+    direct = getattr(leg, field, [])
     if direct:
         return direct
     return getattr(leg.schedule, field, []) if leg.schedule is not None else []
@@ -568,7 +569,7 @@ def price_request(
     intrinsic_payoff = raw_intrinsic_payoff.copy()
     funding_payoff = np.zeros(p.paths)
     coupon_payoff = np.zeros(p.paths)
-    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
+    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "ki_monitoring": put_leg.ki_monitoring if put_leg else "AKI", "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
     knock_in_mask = np.full(p.paths, put_already_ki if put_ki_enabled else False, dtype=bool)
     coupon_knock_in_mask = np.full(p.paths, coupon_already_ki if coupon_ki_enabled else False, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
@@ -596,7 +597,18 @@ def price_request(
     if put_ki_enabled and put_leg and put_leg.barriers:
         for original in put_leg.barriers:
             b = _relative_barrier(original, 1.0)
-            hit_mask = _barrier_mask(put_basket_performance, b, p.eval_datetime, p.expiry)
+            monitor_path = put_basket_performance
+            if put_leg.ki_monitoring == "EKI":
+                fixing_dates = _leg_dates(put_leg, "fixing_dates")
+                if fixing_dates:
+                    eval_date = date.fromisoformat(p.eval_datetime)
+                    total_days = (date.fromisoformat(p.expiry) - eval_date).days
+                    offset = (date.fromisoformat(fixing_dates[-1]) - eval_date).days
+                    fixing_index = max(0, min(p.steps, round(offset / total_days * p.steps)))
+                    monitor_path = put_basket_performance[:, fixing_index : fixing_index + 1]
+                else:
+                    monitor_path = put_basket_performance[:, -1:]
+            hit_mask = _barrier_mask(monitor_path, b, p.eval_datetime, p.expiry)
             if b.event == "KI":
                 knock_in_mask |= hit_mask
                 state["knock_in"] = True

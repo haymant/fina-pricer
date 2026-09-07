@@ -369,3 +369,23 @@ def test_coupon_ki_is_opt_in_and_schedule_is_leg_specific() -> None:
     assert state["coupon_ki_enabled"] is False
     assert state["coupon_knock_in"] is False
     assert [period["realized"] for period in state["coupon_schedule"]["periods"]] == [False, False]
+
+
+def test_put_leg_supports_eki_final_fixing_mode() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["Legs"] = [{
+        "leg_id": 1,
+        "name": "PUT",
+        "leg_type": "intrinsic_option",
+        "sign": "short",
+        "option_type": "put",
+        "strike_ratio": 0.78,
+        "ki_enabled": True,
+        "ki_monitoring": "EKI",
+        "barriers": [{"direction": "down", "event": "KI", "level": 0.70}],
+        "schedule": {"fixing_dates": ["2028-05-25"]},
+    }]
+    request = PricingRequest.model_validate(case)
+    output = price_request(request, component="intrinsic_option")
+    assert output.pv <= 0
+    assert output.diagnostics["lifecycle_state"] == "LIVE"

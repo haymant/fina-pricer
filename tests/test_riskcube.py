@@ -424,3 +424,16 @@ def test_memory_ko_state_does_not_terminate_put_leg() -> None:
     assert output.pv < 0.0
     assert output.diagnostics["coupon_state"]["global_ko_terminated"] is False
     assert output.diagnostics["coupon_state"]["memory_ko_enabled"] is True
+
+
+def test_fcn_aggregate_pv_equals_signed_leg_pv_sum() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["Legs"] = [
+        {"leg_id": 1, "name": "PUT", "leg_type": "intrinsic_option", "sign": "short", "option_type": "put", "strike_ratio": 0.78, "ki_enabled": True, "already_knock_in": True},
+        {"leg_id": 2, "name": "FUNDING", "leg_type": "funding", "sign": "long"},
+        {"leg_id": 3, "name": "COUPON", "leg_type": "coupon", "sign": "long", "ki_enabled": False},
+    ]
+    request = PricingRequest.model_validate(case)
+    aggregate = price_request(request).pv
+    signed_legs = sum(price_request(request, component=leg).pv for leg in ("intrinsic_option", "funding", "coupon"))
+    assert aggregate == pytest.approx(signed_legs, abs=1e-8)

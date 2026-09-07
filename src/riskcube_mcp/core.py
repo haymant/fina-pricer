@@ -757,7 +757,7 @@ def price_request(
         # after KI. This makes the three legs add back exactly to redemption.
         intrinsic_payoff = np.where(
             knock_in_mask & (not global_ko_terminated),
-            -np.maximum(1.0 - terminal_ratio, 0.0) * default_notional,
+            -raw_intrinsic_payoff,
             0.0,
         )
         payoff = funding_payoff + intrinsic_payoff + coupon_payoff

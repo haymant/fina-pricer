@@ -103,6 +103,7 @@ class AdjustedUnderlying(BaseModel):
 
 class UpdatedLifecycle(BaseModel):
     instrument_state: str = "LIVE"
+    already_knock_in: bool = False
     applied_fixings: list[str] = Field(default_factory=list)
     adjusted_underlyings: list[AdjustedUnderlying] = Field(default_factory=list)
 
@@ -426,11 +427,12 @@ def price_request(
     terminal_ratio = basket_ratios[:, -1]
     intrinsic_ratio = np.maximum(terminal_ratio - 1.0, 0.0) if p.option_type == "call" else np.maximum(1.0 - terminal_ratio, 0.0)
     default_notional = request.common_economics.notional if request.common_economics and request.common_economics.notional else request.instrument.notional
-    intrinsic_payoff = intrinsic_ratio * default_notional
+    raw_intrinsic_payoff = intrinsic_ratio * default_notional
+    intrinsic_payoff = raw_intrinsic_payoff.copy()
     funding_payoff = np.zeros(p.paths)
     coupon_payoff = np.zeros(p.paths)
-    state: dict[str, Any] = {"knock_in": False, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
-    knock_in_mask = np.zeros(p.paths, dtype=bool)
+    state: dict[str, Any] = {"knock_in": request.lifecycle.already_knock_in, "already_knock_in": request.lifecycle.already_knock_in, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
+    knock_in_mask = np.full(p.paths, request.lifecycle.already_knock_in, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
     barrier_events: list[dict[str, Any]] = []
     barriers = [b if isinstance(b, BarrierSpec) else BarrierSpec.model_validate(b) for b in p.barriers]
@@ -552,6 +554,9 @@ def price_request(
             intrinsic_payoff = np.where(knock_out_mask, ko_settlement, intrinsic_payoff)
     if p.payoff_type == "autocall":
         payoff = np.where(knock_out_mask, np.full(p.paths, default_notional), payoff)
+    intrinsic_leg_payoff = raw_intrinsic_payoff
+    if p.payoff_type == "fcn" or (p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs)):
+        intrinsic_leg_payoff = np.where(knock_in_mask & ~knock_out_mask, raw_intrinsic_payoff, 0.0)
     leg_values = {
         "intrinsic_option": intrinsic_payoff,
         "funding": funding_payoff,
@@ -565,7 +570,7 @@ def price_request(
             elif leg.leg_type == "coupon":
                 leg_values[leg.leg_type] = coupon_payoff * amount / default_notional
             elif leg.leg_type == "intrinsic_option":
-                leg_values[leg.leg_type] = intrinsic_payoff * amount / default_notional
+                leg_values[leg.leg_type] = intrinsic_leg_payoff * amount / default_notional
     selected = payoff if component is None else leg_values.get(component, np.zeros(p.paths))
     discounted_legs = {name: exp(-rate * t) * values * conversion for name, values in leg_values.items()}
     return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})

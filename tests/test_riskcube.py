@@ -299,3 +299,14 @@ def test_future_coupon_uses_stochastic_n1_over_n2() -> None:
     full_case["parameters"]["accrual"]["fixed_n1_periods"] = 4
     full = sensitivity(PricingRequest.model_validate(full_case))
     assert stochastic["LegResults"]["coupon"]["pv_amount"] <= full["LegResults"]["coupon"]["pv_amount"]
+
+
+def test_already_knocked_in_short_put_leg_is_active() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["UpdatedLifecycle"]["already_knock_in"] = True
+    case["Legs"] = [
+        {"leg_id": 1, "name": "SHORT_PUT", "leg_type": "intrinsic_option", "sign": "short", "option_type": "put"},
+    ]
+    result = sensitivity(PricingRequest.model_validate(case))
+    assert result["explainability"]["coupon_state"]["already_knock_in"] is True
+    assert result["LegResults"]["intrinsic_option"]["pv_amount"] < 0

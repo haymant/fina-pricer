@@ -219,6 +219,19 @@ class LegSchedule(BaseModel):
     fixing_dates: list[str] = Field(default_factory=list)
 
 
+class GlobalKOState(BaseModel):
+    enabled: bool = False
+    locked: bool = False
+    date: str | None = None
+    effective_date: str | None = None
+
+    @model_validator(mode="after")
+    def validate_dates(self) -> GlobalKOState:
+        if self.enabled and self.locked and not (self.effective_date or self.date):
+            raise ValueError("locked global KO requires date or effective_date")
+        return self
+
+
 class LegDefinition(BaseModel):
     """Economic definition of one simulation leg."""
 
@@ -240,6 +253,7 @@ class LegDefinition(BaseModel):
     ki_enabled: bool | None = None
     already_knock_in: bool | None = None
     ki_monitoring: Literal["EKI", "AKI"] = "AKI"
+    global_ko: GlobalKOState | None = None
     barriers: list[BarrierSpec] = Field(default_factory=list)
     schedule: LegSchedule | None = None
     observation_dates: list[str] = Field(default_factory=list)
@@ -551,6 +565,12 @@ def price_request(
     coupon_ki_enabled = coupon_leg.ki_enabled if coupon_leg and coupon_leg.ki_enabled is not None else False
     put_already_ki = put_leg.already_knock_in if put_leg and put_leg.already_knock_in is not None else request.lifecycle.already_knock_in
     coupon_already_ki = coupon_leg.already_knock_in if coupon_leg and coupon_leg.already_knock_in is not None else False
+    global_ko = put_leg.global_ko if put_leg else None
+    global_ko_date = (global_ko.effective_date or global_ko.date) if global_ko else None
+    global_ko_terminated = bool(
+        global_ko and global_ko.enabled and global_ko.locked and global_ko_date
+        and date.fromisoformat(global_ko_date) <= date.fromisoformat(p.eval_datetime)
+    )
     performance = asset_paths / spots[None, None, :]
     reference_spots = np.array([u.reference_price or u.spot for u in underlyings], dtype=float)
     put_performance = asset_paths / reference_spots[None, None, :]
@@ -566,10 +586,10 @@ def price_request(
         intrinsic_ratio = np.maximum(put_strike_ratio - put_terminal_ratio, 0.0)
     default_notional = request.common_economics.notional if request.common_economics and request.common_economics.notional else request.instrument.notional
     raw_intrinsic_payoff = intrinsic_ratio * default_notional
-    intrinsic_payoff = raw_intrinsic_payoff.copy()
+    intrinsic_payoff = np.where(global_ko_terminated, 0.0, raw_intrinsic_payoff)
     funding_payoff = np.zeros(p.paths)
     coupon_payoff = np.zeros(p.paths)
-    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "ki_monitoring": put_leg.ki_monitoring if put_leg else "AKI", "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
+    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "ki_monitoring": put_leg.ki_monitoring if put_leg else "AKI", "global_ko_terminated": global_ko_terminated, "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
     knock_in_mask = np.full(p.paths, put_already_ki if put_ki_enabled else False, dtype=bool)
     coupon_knock_in_mask = np.full(p.paths, coupon_already_ki if coupon_ki_enabled else False, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
@@ -710,7 +730,9 @@ def price_request(
         # FCN redemption is par funding plus a short downside intrinsic option
         # after KI. This makes the three legs add back exactly to redemption.
         intrinsic_payoff = np.where(
-            knock_in_mask, -np.maximum(1.0 - terminal_ratio, 0.0) * default_notional, 0.0
+            knock_in_mask & (not global_ko_terminated),
+            -np.maximum(1.0 - terminal_ratio, 0.0) * default_notional,
+            0.0,
         )
         payoff = funding_payoff + intrinsic_payoff + coupon_payoff
     else:
@@ -732,7 +754,7 @@ def price_request(
         payoff = np.where(knock_out_mask, np.full(p.paths, default_notional), payoff)
     intrinsic_leg_payoff = raw_intrinsic_payoff
     if p.payoff_type == "fcn" or (p.payoff_type == "barrier" and any(original.event == "KI" for _, original, _, _ in barrier_specs)):
-        intrinsic_leg_payoff = np.where(knock_in_mask & ~knock_out_mask, raw_intrinsic_payoff, 0.0)
+        intrinsic_leg_payoff = np.where(knock_in_mask & ~knock_out_mask & (not global_ko_terminated), raw_intrinsic_payoff, 0.0)
     leg_values = {
         "intrinsic_option": intrinsic_payoff,
         "funding": funding_payoff,

@@ -42,6 +42,16 @@
           "ki_enabled": {"type": "boolean"},
           "already_knock_in": {"type": "boolean"},
           "ki_monitoring": {"enum": ["EKI", "AKI"], "default": "AKI"},
+          "global_ko": {
+            "type": "object",
+            "properties": {
+              "enabled": {"type": "boolean"},
+              "locked": {"type": "boolean"},
+              "date": {"type": "string", "format": "date"},
+              "effective_date": {"type": "string", "format": "date"}
+            },
+            "additionalProperties": false
+          },
           "barriers": {"type": "array", "items": {"$ref": "#/definitions/barrier"}},
           "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
           "payment_dates": {"type": "array", "items": {"type": "string", "format": "date"}},

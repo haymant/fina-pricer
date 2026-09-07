@@ -389,3 +389,20 @@ def test_put_leg_supports_eki_final_fixing_mode() -> None:
     output = price_request(request, component="intrinsic_option")
     assert output.pv <= 0
     assert output.diagnostics["lifecycle_state"] == "LIVE"
+
+
+def test_locked_global_ko_terminates_put_leg_immediately() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["Legs"] = [{
+        "leg_id": 1,
+        "name": "PUT",
+        "leg_type": "intrinsic_option",
+        "sign": "short",
+        "option_type": "put",
+        "ki_enabled": True,
+        "already_knock_in": True,
+        "global_ko": {"enabled": True, "locked": True, "effective_date": "2026-07-19"},
+    }]
+    output = price_request(PricingRequest.model_validate(case), component="intrinsic_option")
+    assert output.pv == 0.0
+    assert output.diagnostics["coupon_state"]["global_ko_terminated"] is True

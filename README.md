@@ -132,6 +132,8 @@ Lifecycle and schedules are leg-specific when supplied under `Legs`. In particul
 
 Put-leg KI monitoring is explicit: `ki_monitoring: "AKI"` uses all simulated monitoring dates, while `ki_monitoring: "EKI"` checks only the final fixing date or the final entry in `schedule.fixing_dates`. EKI is a discontinuous event-state payoff and is valued through the Monte Carlo path engine rather than the smooth QuantLib analytic shortcut.
 
+Put-leg global KO termination is explicit through `global_ko: {"enabled": true, "locked": true, "effective_date": "YYYY-MM-DD"}`. Once the effective date is on or before the evaluation date, the put leg contributes zero; this convention does not implicitly terminate the coupon or funding legs.
+
 The same fields are available in `RiskCube.valuation`, and each RiskCube cell carries `pv_amount` and `price_pct_of_notional`. Standard errors are returned as both `PV_stderr_amount` and `PV_stderr_pct_of_notional`. The term **price** should be reserved for the normalized percentage quote, while **PV amount**, **valuation amount**, or **redemption value** should be used for currency-denominated amounts.
 
 ## Common economics and leg decomposition

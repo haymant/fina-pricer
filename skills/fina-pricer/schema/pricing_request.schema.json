@@ -42,13 +42,27 @@
           "ki_enabled": {"type": "boolean"},
           "already_knock_in": {"type": "boolean"},
           "ki_monitoring": {"enum": ["EKI", "AKI"], "default": "AKI"},
-          "global_ko": {
+          "option_ko": {
             "type": "object",
             "properties": {
               "enabled": {"type": "boolean"},
-              "locked": {"type": "boolean"},
-              "date": {"type": "string", "format": "date"},
-              "effective_date": {"type": "string", "format": "date"}
+              "effective_schedule": {"enum": ["KO_Date", "IR_KO_Date"]},
+              "interest_rate_effective_schedule": {"enum": ["KO_Date", "IR_KO_Date"]},
+              "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+              "effective_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+              "global_ko": {"type": "boolean"},
+              "shifter": {"type": "integer"}
+            },
+            "additionalProperties": false
+          },
+          "memory_ko": {
+            "type": "object",
+            "properties": {
+              "enabled": {"type": "boolean"},
+              "locked": {"type": "array", "items": {"type": "boolean"}},
+              "dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+              "performances": {"type": "array", "items": {"type": "number"}},
+              "memory_action": {"enum": ["carry_forward", "release", "suppress_future"]}
             },
             "additionalProperties": false
           },

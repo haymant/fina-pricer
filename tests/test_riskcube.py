@@ -401,8 +401,26 @@ def test_locked_global_ko_terminates_put_leg_immediately() -> None:
         "option_type": "put",
         "ki_enabled": True,
         "already_knock_in": True,
-        "global_ko": {"enabled": True, "locked": True, "effective_date": "2026-07-19"},
+        "option_ko": {"enabled": True, "global_ko": True, "observation_dates": ["2026-07-17"], "effective_dates": ["2026-07-19"]},
     }]
     output = price_request(PricingRequest.model_validate(case), component="intrinsic_option")
     assert output.pv == 0.0
     assert output.diagnostics["coupon_state"]["global_ko_terminated"] is True
+
+
+def test_memory_ko_state_does_not_terminate_put_leg() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["Legs"] = [{
+        "leg_id": 1,
+        "name": "PUT",
+        "leg_type": "intrinsic_option",
+        "sign": "short",
+        "option_type": "put",
+        "ki_enabled": True,
+        "already_knock_in": True,
+        "memory_ko": {"enabled": True, "locked": [True, False], "dates": ["2026-07-17", "2027-02-01"], "performances": [0.0, 0.0]},
+    }]
+    output = price_request(PricingRequest.model_validate(case), component="intrinsic_option")
+    assert output.pv < 0.0
+    assert output.diagnostics["coupon_state"]["global_ko_terminated"] is False
+    assert output.diagnostics["coupon_state"]["memory_ko_enabled"] is True

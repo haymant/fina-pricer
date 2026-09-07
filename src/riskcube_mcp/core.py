@@ -219,17 +219,40 @@ class LegSchedule(BaseModel):
     fixing_dates: list[str] = Field(default_factory=list)
 
 
-class GlobalKOState(BaseModel):
+class OptionKOState(BaseModel):
     enabled: bool = False
-    locked: bool = False
-    date: str | None = None
-    effective_date: str | None = None
+    effective_schedule: Literal["KO_Date", "IR_KO_Date"] = "KO_Date"
+    interest_rate_effective_schedule: Literal["KO_Date", "IR_KO_Date"] = "IR_KO_Date"
+    observation_dates: list[str] = Field(default_factory=list)
+    effective_dates: list[str] = Field(default_factory=list)
+    global_ko: bool = False
+    shifter: int = 0
 
     @model_validator(mode="after")
-    def validate_dates(self) -> GlobalKOState:
-        if self.enabled and self.locked and not (self.effective_date or self.date):
-            raise ValueError("locked global KO requires date or effective_date")
+    def validate_dates(self) -> OptionKOState:
+        if len(self.effective_dates) not in {0, len(self.observation_dates)}:
+            raise ValueError("option_ko effective_dates must match observation_dates")
         return self
+
+
+class MemoryKOState(BaseModel):
+    enabled: bool = False
+    locked: list[bool] = Field(default_factory=list)
+    dates: list[str] = Field(default_factory=list)
+    performances: list[float] = Field(default_factory=list)
+    memory_action: Literal["carry_forward", "release", "suppress_future"] = "carry_forward"
+
+    @model_validator(mode="after")
+    def validate_lengths(self) -> MemoryKOState:
+        lengths = {len(values) for values in (self.locked, self.dates, self.performances) if values}
+        if len(lengths) > 1:
+            raise ValueError("memory_ko locked, dates, and performances must have matching lengths")
+        return self
+
+
+# Legacy alias retained for source compatibility. New requests must use option_ko
+# for option termination and memory_ko for coupon-memory lifecycle state.
+GlobalKOState = OptionKOState
 
 
 class LegDefinition(BaseModel):
@@ -253,6 +276,8 @@ class LegDefinition(BaseModel):
     ki_enabled: bool | None = None
     already_knock_in: bool | None = None
     ki_monitoring: Literal["EKI", "AKI"] = "AKI"
+    option_ko: OptionKOState | None = None
+    memory_ko: MemoryKOState | None = None
     global_ko: GlobalKOState | None = None
     barriers: list[BarrierSpec] = Field(default_factory=list)
     schedule: LegSchedule | None = None
@@ -565,11 +590,11 @@ def price_request(
     coupon_ki_enabled = coupon_leg.ki_enabled if coupon_leg and coupon_leg.ki_enabled is not None else False
     put_already_ki = put_leg.already_knock_in if put_leg and put_leg.already_knock_in is not None else request.lifecycle.already_knock_in
     coupon_already_ki = coupon_leg.already_knock_in if coupon_leg and coupon_leg.already_knock_in is not None else False
-    global_ko = put_leg.global_ko if put_leg else None
-    global_ko_date = (global_ko.effective_date or global_ko.date) if global_ko else None
+    option_ko = (put_leg.option_ko or put_leg.global_ko) if put_leg else None
+    option_ko_dates = option_ko.effective_dates if option_ko else []
     global_ko_terminated = bool(
-        global_ko and global_ko.enabled and global_ko.locked and global_ko_date
-        and date.fromisoformat(global_ko_date) <= date.fromisoformat(p.eval_datetime)
+        option_ko and option_ko.enabled and option_ko.global_ko and option_ko_dates
+        and any(date.fromisoformat(raw) <= date.fromisoformat(p.eval_datetime) for raw in option_ko_dates)
     )
     performance = asset_paths / spots[None, None, :]
     reference_spots = np.array([u.reference_price or u.spot for u in underlyings], dtype=float)
@@ -589,7 +614,8 @@ def price_request(
     intrinsic_payoff = np.where(global_ko_terminated, 0.0, raw_intrinsic_payoff)
     funding_payoff = np.zeros(p.paths)
     coupon_payoff = np.zeros(p.paths)
-    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "ki_monitoring": put_leg.ki_monitoring if put_leg else "AKI", "global_ko_terminated": global_ko_terminated, "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
+    memory_ko = (coupon_leg.memory_ko if coupon_leg else None) or (put_leg.memory_ko if put_leg else None)
+    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "ki_monitoring": put_leg.ki_monitoring if put_leg else "AKI", "option_ko_enabled": bool(option_ko and option_ko.enabled), "option_ko_global": bool(option_ko and option_ko.global_ko), "global_ko_terminated": global_ko_terminated, "memory_ko_enabled": bool(memory_ko and memory_ko.enabled), "memory_ko_locked": memory_ko.locked if memory_ko else [], "memory_ko_action": memory_ko.memory_action if memory_ko else None, "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
     knock_in_mask = np.full(p.paths, put_already_ki if put_ki_enabled else False, dtype=bool)
     coupon_knock_in_mask = np.full(p.paths, coupon_already_ki if coupon_ki_enabled else False, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)

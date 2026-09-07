@@ -178,6 +178,7 @@ class PricingParameters(BaseModel):
     risk_free_rate: float = 0.03
     dividend_yield: float = 0.0
     volatility: float = Field(default=0.25, gt=0)
+    volatility_mode: Literal["constant", "forward"] = "constant"
     svi: SVIParameters | None = None
     paths: int = Field(default=20000, ge=1000, le=500000)
     steps: int = Field(default=64, ge=2, le=512)
@@ -379,6 +380,46 @@ def _surface_vol_for(request: PricingRequest, underlying: Underlying, expiry: st
     return float(np.interp(_surface_axis(expiry), maturities, by_maturity))
 
 
+def _forward_vol_steps_for(request: PricingRequest, underlying: Underlying) -> np.ndarray:
+    surface = next(
+        (item for item in request.market_data.vol_surfaces if item.get("underlying") == underlying.name),
+        None,
+    )
+    p = request.parameters
+    if surface is None:
+        return np.full(p.steps, _market_value_for(request.market_data.vol_data, "underlying", underlying.name, p.volatility))
+    expiry_axis = _surface_axis(p.expiry)
+    eval_axis = _surface_axis(p.eval_datetime)
+    strikes = np.asarray(surface.get("strikes", []), dtype=float)
+    maturities = np.asarray([_surface_axis(x) for x in surface.get("maturities", [])], dtype=float)
+    matrix = np.asarray(surface.get("vols", []), dtype=float)
+    if strikes.ndim != 1 or maturities.ndim != 1 or matrix.shape != (len(maturities), len(strikes)):
+        raise ValueError(f"invalid volatility surface shape for {underlying.name}")
+    order_k = np.argsort(strikes)
+    order_t = np.argsort(maturities)
+    strikes = strikes[order_k]
+    maturities = maturities[order_t]
+    matrix = matrix[np.ix_(order_t, order_k)]
+    slice_vols = np.array([np.interp(underlying.strikePrice, strikes, row) for row in matrix])
+    anchors = [eval_axis]
+    variances = [0.0]
+    for maturity, vol in zip(maturities, slice_vols):
+        if eval_axis < maturity < expiry_axis:
+            years = (maturity - eval_axis) / 365.0
+            anchors.append(maturity)
+            variances.append(years * float(vol) ** 2)
+    terminal_vol = _surface_vol_for(request, underlying, p.expiry, p.volatility)
+    total_years = (expiry_axis - eval_axis) / 365.0
+    anchors.append(expiry_axis)
+    variances.append(total_years * terminal_vol**2)
+    anchors_array = np.asarray(anchors, dtype=float)
+    variances_array = np.asarray(variances, dtype=float)
+    step_times = np.linspace(eval_axis, expiry_axis, p.steps + 1)
+    step_vars = np.interp(step_times, anchors_array, variances_array)
+    forward_var = np.maximum(np.diff(step_vars) / (total_years / p.steps), 1e-12)
+    return np.sqrt(forward_var)
+
+
 def _correlation_matrix(request: PricingRequest, n: int) -> np.ndarray:
     raw = request.parameters.correlation
     if raw is None:
@@ -455,10 +496,14 @@ def price_request(
         )
         for u in underlyings
     ], dtype=float)
+    step_vols = np.vstack([
+        np.full(p.steps, vols[index]) if p.volatility_mode == "constant" else _forward_vol_steps_for(request, u)
+        for index, u in enumerate(underlyings)
+    ]).T
     common_rate = request.common_economics.discount_rate if request.common_economics and request.common_economics.discount_rate is not None else p.risk_free_rate
     conversion = request.common_economics.currency_conversion if request.common_economics and request.common_economics.currency_conversion is not None else p.currency_conversion
     rate = overrides.get("rate", _market_value_for(request.market_data.ir_data, "currency", request.instrument.payment_currency, common_rate))
-    increments = (rate - p.dividend_yield - 0.5 * vols[None, None, :] ** 2) * dt + vols[None, None, :] * sqrt(dt) * z
+    increments = (rate - p.dividend_yield - 0.5 * step_vols[None, :, :] ** 2) * dt + step_vols[None, :, :] * sqrt(dt) * z
     asset_paths = spots[None, None, :] * np.exp(np.cumsum(increments, axis=1))
     asset_paths = np.concatenate([np.broadcast_to(spots, (p.paths, 1, n)), asset_paths], axis=1)
     performance = asset_paths / spots[None, None, :]
@@ -614,7 +659,7 @@ def price_request(
                 leg_values[leg.leg_type] = intrinsic_leg_payoff * amount / default_notional
     selected = payoff if component is None else leg_values.get(component, np.zeros(p.paths))
     discounted_legs = {name: exp(-rate * t) * values * conversion for name, values in leg_values.items()}
-    return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "volatilities": {u.name: float(vols[index]) for index, u in enumerate(underlyings)}, "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})
+    return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "volatilities": {u.name: float(vols[index]) for index, u in enumerate(underlyings)}, "forward_volatility_steps": {u.name: step_vols[:, index].tolist() for index, u in enumerate(underlyings)} if p.volatility_mode == "forward" else None, "volatility_mode": p.volatility_mode, "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})
 
 
 def _aad_greeks(request: PricingRequest, z: np.ndarray) -> dict[str, float]:

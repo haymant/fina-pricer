@@ -328,3 +328,19 @@ def test_vol_surface_interpolates_by_strike_and_expiry() -> None:
     request = PricingRequest.model_validate(case)
     value = _surface_vol_for(request, request.unwind_map.underlyings[0], "2028-06-30", 0.99)
     assert value == pytest.approx(0.3577580822, abs=1e-10)
+
+
+def test_forward_volatility_mode_builds_stepwise_surface_vols() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["MarketDataSnapshot"]["vol_surfaces"] = [{
+        "underlying": "UND_A HK",
+        "strikes": [5.0, 6.0],
+        "maturities": ["2027-08-01", "2028-01-01", "2028-12-31"],
+        "vols": [[0.20, 0.30], [0.30, 0.40], [0.40, 0.50]],
+    }]
+    case["parameters"]["volatility_mode"] = "forward"
+    request = PricingRequest.model_validate(case)
+    output = price_request(request)
+    forward_steps = output.diagnostics["forward_volatility_steps"]["UND_A HK"]
+    assert len(forward_steps) == request.parameters.steps
+    assert all(value > 0 for value in forward_steps)

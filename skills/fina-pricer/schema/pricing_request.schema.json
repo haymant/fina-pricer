@@ -66,6 +66,7 @@
         "risk_free_rate": {"type": "number"},
         "dividend_yield": {"type": "number"},
         "volatility": {"type": "number", "exclusiveMinimum": 0},
+        "volatility_mode": {"enum": ["constant", "forward"], "default": "constant"},
         "svi": {"type": ["object", "null"], "properties": {"a": {"type": "number", "exclusiveMinimum": 0}, "b": {"type": "number", "exclusiveMinimum": 0}, "rho": {"type": "number", "exclusiveMinimum": -1, "exclusiveMaximum": 1}, "m": {"type": "number"}, "sigma": {"type": "number", "exclusiveMinimum": 0}}, "required": ["a", "b", "rho", "m", "sigma"], "additionalProperties": false},
         "paths": {"type": "integer", "minimum": 1000},
         "steps": {"type": "integer", "minimum": 2},

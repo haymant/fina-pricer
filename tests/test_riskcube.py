@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from riskcube_mcp.core import PricingRequest, price_request, sensitivity
+from riskcube_mcp.core import (
+    PricingRequest,
+    _surface_vol_for,
+    price_request,
+    sensitivity,
+)
 from riskcube_mcp.server import app
 
 ROOT = Path(__file__).parents[1]
@@ -310,3 +315,16 @@ def test_already_knocked_in_short_put_leg_is_active() -> None:
     result = sensitivity(PricingRequest.model_validate(case))
     assert result["explainability"]["coupon_state"]["already_knock_in"] is True
     assert result["LegResults"]["intrinsic_option"]["pv_amount"] < 0
+
+
+def test_vol_surface_interpolates_by_strike_and_expiry() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["MarketDataSnapshot"]["vol_surfaces"] = [{
+        "underlying": "UND_A HK",
+        "strikes": [5.0, 6.0],
+        "maturities": ["2028-01-01", "2028-12-31"],
+        "vols": [[0.20, 0.30], [0.40, 0.50]],
+    }]
+    request = PricingRequest.model_validate(case)
+    value = _surface_vol_for(request, request.unwind_map.underlyings[0], "2028-06-30", 0.99)
+    assert value == pytest.approx(0.3577580822, abs=1e-10)

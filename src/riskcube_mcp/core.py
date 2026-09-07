@@ -92,6 +92,7 @@ class MarketPoint(BaseModel):
 class MarketDataSnapshot(BaseModel):
     spot_data: list[MarketPoint] = Field(default_factory=list)
     vol_data: list[MarketPoint] = Field(default_factory=list)
+    vol_surfaces: list[dict[str, Any]] = Field(default_factory=list)
     ir_data: list[MarketPoint] = Field(default_factory=list)
     fx_data: list[MarketPoint] = Field(default_factory=list)
 
@@ -349,6 +350,35 @@ def _market_value_for(points: list[MarketPoint], key: str, value: str, fallback:
     return fallback
 
 
+def _surface_axis(value: str | float) -> float:
+    if isinstance(value, str):
+        return float((date.fromisoformat(value[:10]) - date(1899, 12, 30)).days)
+    return float(value)
+
+
+def _surface_vol_for(request: PricingRequest, underlying: Underlying, expiry: str, fallback: float) -> float:
+    surface = next(
+        (item for item in request.market_data.vol_surfaces if item.get("underlying") == underlying.name),
+        None,
+    )
+    if surface is None:
+        return fallback
+    strikes = np.asarray(surface.get("strikes", []), dtype=float)
+    maturities = np.asarray([_surface_axis(x) for x in surface.get("maturities", [])], dtype=float)
+    matrix = np.asarray(surface.get("vols", []), dtype=float)
+    if strikes.ndim != 1 or maturities.ndim != 1 or matrix.shape != (len(maturities), len(strikes)):
+        raise ValueError(f"invalid volatility surface shape for {underlying.name}")
+    if len(strikes) == 0 or len(maturities) == 0 or np.any(matrix <= 0):
+        raise ValueError(f"volatility surface for {underlying.name} must contain positive values")
+    order_k = np.argsort(strikes)
+    order_t = np.argsort(maturities)
+    strikes = strikes[order_k]
+    maturities = maturities[order_t]
+    matrix = matrix[np.ix_(order_t, order_k)]
+    by_maturity = np.array([np.interp(underlying.strikePrice, strikes, row) for row in matrix])
+    return float(np.interp(_surface_axis(expiry), maturities, by_maturity))
+
+
 def _correlation_matrix(request: PricingRequest, n: int) -> np.ndarray:
     raw = request.parameters.correlation
     if raw is None:
@@ -413,7 +443,18 @@ def price_request(
     dt = t / p.steps
     corr = _correlation_matrix(request, n)
     z = rng.standard_normal((p.paths, p.steps, n)) @ np.linalg.cholesky(corr).T
-    vols = np.array([overrides.get(f"vol:{u.name}", _market_value_for(request.market_data.vol_data, "underlying", u.name, p.volatility)) for u in underlyings], dtype=float)
+    vols = np.array([
+        overrides.get(
+            f"vol:{u.name}",
+            _surface_vol_for(
+                request,
+                u,
+                p.expiry,
+                _market_value_for(request.market_data.vol_data, "underlying", u.name, p.volatility),
+            ),
+        )
+        for u in underlyings
+    ], dtype=float)
     common_rate = request.common_economics.discount_rate if request.common_economics and request.common_economics.discount_rate is not None else p.risk_free_rate
     conversion = request.common_economics.currency_conversion if request.common_economics and request.common_economics.currency_conversion is not None else p.currency_conversion
     rate = overrides.get("rate", _market_value_for(request.market_data.ir_data, "currency", request.instrument.payment_currency, common_rate))
@@ -573,7 +614,7 @@ def price_request(
                 leg_values[leg.leg_type] = intrinsic_leg_payoff * amount / default_notional
     selected = payoff if component is None else leg_values.get(component, np.zeros(p.paths))
     discounted_legs = {name: exp(-rate * t) * values * conversion for name, values in leg_values.items()}
-    return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})
+    return PriceResult(float(np.mean(exp(-rate * t) * selected * conversion)), float(np.std(exp(-rate * t) * selected * conversion, ddof=1) / sqrt(p.paths)), {"model": "risk-neutral GBM Monte Carlo", "paths": p.paths, "steps": p.steps, "time_to_expiry_years": t, "underlyings": [u.name for u in underlyings], "volatilities": {u.name: float(vols[index]) for index, u in enumerate(underlyings)}, "basket_method": p.basket_method, "correlation": corr.tolist(), "moneyness": float(basket_ratios[0, 0]), "spot_state": "ATM" if abs(basket_ratios[0, 0] - 1.0) < 1e-12 else ("OTM" if basket_ratios[0, 0] < 1.0 else "ITM"), "barrier_events": barrier_events, "lifecycle_state": request.lifecycle.instrument_state, "applied_fixings": request.lifecycle.applied_fixings, "coupon_state": state, "legs": [leg.model_dump(exclude_none=True) for leg in _default_legs(request)], "leg_decomposition": {name: float(np.mean(value)) for name, value in discounted_legs.items()}}, leg_values, {name: float(np.std(value, ddof=1) / sqrt(p.paths)) for name, value in discounted_legs.items()})
 
 
 def _aad_greeks(request: PricingRequest, z: np.ndarray) -> dict[str, float]:
@@ -704,7 +745,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
         kind = rfk.type
         base_val = {
             "Spot": next((u.spot for u in request.unwind_map.underlyings if u.name == (rfk.underlying or request.unwind_map.underlyings[0].name)), request.unwind_map.underlyings[0].spot),
-            "Volatility": next((uvol for uvol in [_market_value_for(request.market_data.vol_data, "underlying", rfk.underlying or request.unwind_map.underlyings[0].name, p.volatility)] if uvol is not None), p.volatility),
+            "Volatility": _surface_vol_for(request, next((u for u in request.unwind_map.underlyings if u.name == (rfk.underlying or request.unwind_map.underlyings[0].name)), request.unwind_map.underlyings[0]), p.expiry, p.volatility),
             "InterestRate": p.risk_free_rate,
             "FXSpot": p.currency_conversion,
             "SVIParameter": getattr(p.svi, rfk.surface_parameter) if p.svi is not None and rfk.surface_parameter else 0.0,
@@ -810,7 +851,7 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
             kind = rfk.type
             base_val = {
                 "Spot": next((u.spot for u in request.unwind_map.underlyings if u.name == (rfk.underlying or request.unwind_map.underlyings[0].name)), request.unwind_map.underlyings[0].spot),
-                "Volatility": _market_value_for(request.market_data.vol_data, "underlying", rfk.underlying or request.unwind_map.underlyings[0].name, p.volatility),
+                "Volatility": _surface_vol_for(request, next((u for u in request.unwind_map.underlyings if u.name == (rfk.underlying or request.unwind_map.underlyings[0].name)), request.unwind_map.underlyings[0]), p.expiry, p.volatility),
                 "InterestRate": p.risk_free_rate,
                 "FXSpot": p.currency_conversion,
                 "SVIParameter": 0.0,

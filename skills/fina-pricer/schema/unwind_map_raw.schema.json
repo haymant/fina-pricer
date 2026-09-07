@@ -15,6 +15,7 @@
           "name": {"type": "string"},
           "currency": {"type": "string"},
           "spot": {"type": "number", "exclusiveMinimum": 0},
+          "reference_price": {"type": "number", "exclusiveMinimum": 0},
           "strikePrice": {"type": "number", "exclusiveMinimum": 0},
           "barrierPrice": {"type": ["number", "null"], "exclusiveMinimum": 0},
           "barriers": {

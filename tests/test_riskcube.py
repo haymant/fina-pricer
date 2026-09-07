@@ -344,3 +344,28 @@ def test_forward_volatility_mode_builds_stepwise_surface_vols() -> None:
     forward_steps = output.diagnostics["forward_volatility_steps"]["UND_A HK"]
     assert len(forward_steps) == request.parameters.steps
     assert all(value > 0 for value in forward_steps)
+
+
+def test_coupon_ki_is_opt_in_and_schedule_is_leg_specific() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    case["UpdatedLifecycle"]["already_knock_in"] = True
+    case["parameters"].update({"payoff_type": "fcn"})
+    case["parameters"]["accrual"] = {
+        "coupon_rate": 0.04,
+        "memory": True,
+        "observations": 2,
+        "accruals": [0.02, 0.02],
+        "n1": [1, 1],
+        "n2": [1, 1],
+        "range_lower": 0.1,
+        "range_upper": 999.99,
+    }
+    case["Legs"] = [
+        {"leg_id": 1, "name": "PUT", "leg_type": "intrinsic_option", "sign": "short", "option_type": "put", "ki_enabled": True, "already_knock_in": True},
+        {"leg_id": 2, "name": "COUPON", "leg_type": "coupon", "sign": "long", "observation_count": 2, "ki_enabled": False, "schedule": {"payment_dates": ["2028-01-01", "2028-02-01"]}},
+    ]
+    output = sensitivity(PricingRequest.model_validate(case))
+    state = output["explainability"]["coupon_state"]
+    assert state["coupon_ki_enabled"] is False
+    assert state["coupon_knock_in"] is False
+    assert [period["realized"] for period in state["coupon_schedule"]["periods"]] == [False, False]

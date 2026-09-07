@@ -128,6 +128,8 @@ The service returns both commonly used valuation conventions. `PV_amount` is the
 
 `MarketDataSnapshot.vol_surfaces` accepts one grid per underlying with `strikes`, `maturities`, and a row-major `vols` matrix. Maturities may be ISO dates or numeric date serials. The engine interpolates the grid at the underlying’s actual `strikePrice` and product expiry; `vol_data` single-IV points remain a fallback only.
 
+Lifecycle and schedules are leg-specific when supplied under `Legs`. In particular, coupon KI is opt-in through `ki_enabled`; a product-level `UpdatedLifecycle.already_knock_in` does not implicitly suppress coupons. Coupon `observation_dates` and `payment_dates` may differ from the put leg and override the aggregate accrual schedule. For delivery-style FCNs, a put leg can specify `reference_price`, `strike_ratio`, and `settlement: "delivery"` to represent a reference-price strike-ratio payoff.
+
 The same fields are available in `RiskCube.valuation`, and each RiskCube cell carries `pv_amount` and `price_pct_of_notional`. Standard errors are returned as both `PV_stderr_amount` and `PV_stderr_pct_of_notional`. The term **price** should be reserved for the normalized percentage quote, while **PV amount**, **valuation amount**, or **redemption value** should be used for currency-denominated amounts.
 
 ## Common economics and leg decomposition

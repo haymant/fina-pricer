@@ -32,10 +32,27 @@
           "sign": {"enum": ["long", "short"]},
           "option_type": {"enum": ["call", "put"]},
           "strike": {"type": "number", "exclusiveMinimum": 0},
+          "strike_ratio": {"type": "number", "exclusiveMinimum": 0},
+          "settlement": {"enum": ["cash", "delivery"]},
           "coupon_rate": {"type": "number"},
           "memory": {"type": "boolean"},
           "observations": {"type": "integer", "minimum": 1},
-          "pay_if_ki": {"type": "boolean"}
+          "observation_count": {"type": "integer", "minimum": 1},
+          "pay_if_ki": {"type": "boolean"},
+          "ki_enabled": {"type": "boolean"},
+          "already_knock_in": {"type": "boolean"},
+          "barriers": {"type": "array", "items": {"$ref": "#/definitions/barrier"}},
+          "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+          "payment_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+          "schedule": {
+            "type": "object",
+            "properties": {
+              "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+              "payment_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+              "fixing_dates": {"type": "array", "items": {"type": "string", "format": "date"}}
+            },
+            "additionalProperties": false
+          }
         },
         "additionalProperties": false
       }
@@ -78,6 +95,22 @@
         "barrier_smoothing_width": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.25, "default": 0.01},
         "basket_method": {"enum": ["worst_of", "best_of"], "default": "worst_of"},
         "correlation": {"type": ["array", "null"], "items": {"type": "array", "items": {"type": "number"}}}
+      },
+      "additionalProperties": true
+    }
+  },
+  "definitions": {
+    "barrier": {
+      "type": "object",
+      "required": ["direction", "event", "level"],
+      "properties": {
+        "direction": {"enum": ["up", "down"]},
+        "event": {"enum": ["KI", "KO"]},
+        "level": {"type": "number", "exclusiveMinimum": 0},
+        "level_type": {"enum": ["relative_initial", "absolute"]},
+        "monitoring": {"enum": ["global", "local"]},
+        "observation_dates": {"type": "array", "items": {"type": "string", "format": "date"}},
+        "rebate": {"type": "number"}
       },
       "additionalProperties": true
     }

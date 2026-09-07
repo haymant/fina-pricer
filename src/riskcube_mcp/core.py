@@ -34,6 +34,7 @@ class Underlying(BaseModel):
     name: str
     currency: str = "USD"
     spot: float = Field(gt=0)
+    reference_price: float | None = Field(default=None, gt=0)
     strikePrice: float = Field(gt=0)
     barrierPrice: float | None = Field(default=None, gt=0)
     barriers: list[dict[str, Any]] = Field(default_factory=list)
@@ -212,8 +213,16 @@ class CommonEconomics(BaseModel):
     currency_conversion: float | None = Field(default=None, gt=0)
 
 
+class LegSchedule(BaseModel):
+    observation_dates: list[str] = Field(default_factory=list)
+    payment_dates: list[str] = Field(default_factory=list)
+    fixing_dates: list[str] = Field(default_factory=list)
+
+
 class LegDefinition(BaseModel):
     """Economic definition of one simulation leg."""
+
+    model_config = ConfigDict(populate_by_name=True)
 
     leg_id: int
     name: str
@@ -222,10 +231,18 @@ class LegDefinition(BaseModel):
     sign: Literal["long", "short"] = "long"
     option_type: Literal["call", "put"] | None = None
     strike: float | None = Field(default=None, gt=0)
+    strike_ratio: float | None = Field(default=None, gt=0)
+    settlement: Literal["cash", "delivery"] = "cash"
     coupon_rate: float | None = None
     memory: bool | None = None
-    observations: int | None = Field(default=None, ge=1)
+    observations: int | None = Field(default=None, ge=1, alias="observation_count")
     pay_if_ki: bool | None = None
+    ki_enabled: bool | None = None
+    already_knock_in: bool | None = None
+    barriers: list[BarrierSpec] = Field(default_factory=list)
+    schedule: LegSchedule | None = None
+    observation_dates: list[str] = Field(default_factory=list)
+    payment_dates: list[str] = Field(default_factory=list)
 
 
 class PricingRequest(BaseModel):
@@ -254,6 +271,14 @@ class PricingRequest(BaseModel):
             types = [leg.leg_type for leg in self.legs]
             if len(types) != len(set(types)):
                 raise ValueError("each leg type may be defined only once")
+            for leg in self.legs:
+                schedule = leg.schedule
+                observation_dates = leg.observation_dates or (schedule.observation_dates if schedule else [])
+                payment_dates = leg.payment_dates or (schedule.payment_dates if schedule else [])
+                if leg.observations is not None and observation_dates and len(observation_dates) != leg.observations:
+                    raise ValueError(f"{leg.name} observation_dates must match observation_count")
+                if leg.observations is not None and payment_dates and len(payment_dates) != leg.observations:
+                    raise ValueError(f"{leg.name} payment_dates must match observation_count")
         return self
 
 
@@ -457,6 +482,19 @@ def _default_legs(request: PricingRequest) -> list[LegDefinition]:
     return legs
 
 
+def _leg_of_type(request: PricingRequest, leg_type: str) -> LegDefinition | None:
+    return next((leg for leg in _default_legs(request) if leg.leg_type == leg_type), None)
+
+
+def _leg_dates(leg: LegDefinition | None, field: str) -> list[str]:
+    if leg is None:
+        return []
+    direct = getattr(leg, field)
+    if direct:
+        return direct
+    return getattr(leg.schedule, field, []) if leg.schedule is not None else []
+
+
 def _leg_economics(request: PricingRequest, leg: LegDefinition) -> tuple[float, float]:
     common = request.common_economics
     notional = leg.notional or (common.notional if common and common.notional else request.instrument.notional)
@@ -506,31 +544,59 @@ def price_request(
     increments = (rate - p.dividend_yield - 0.5 * step_vols[None, :, :] ** 2) * dt + step_vols[None, :, :] * sqrt(dt) * z
     asset_paths = spots[None, None, :] * np.exp(np.cumsum(increments, axis=1))
     asset_paths = np.concatenate([np.broadcast_to(spots, (p.paths, 1, n)), asset_paths], axis=1)
+    put_leg = _leg_of_type(request, "intrinsic_option")
+    coupon_leg = _leg_of_type(request, "coupon")
+    put_ki_enabled = put_leg.ki_enabled if put_leg and put_leg.ki_enabled is not None else True
+    coupon_ki_enabled = coupon_leg.ki_enabled if coupon_leg and coupon_leg.ki_enabled is not None else False
+    put_already_ki = put_leg.already_knock_in if put_leg and put_leg.already_knock_in is not None else request.lifecycle.already_knock_in
+    coupon_already_ki = coupon_leg.already_knock_in if coupon_leg and coupon_leg.already_knock_in is not None else False
     performance = asset_paths / spots[None, None, :]
+    reference_spots = np.array([u.reference_price or u.spot for u in underlyings], dtype=float)
+    put_performance = asset_paths / reference_spots[None, None, :]
     normalized_levels = asset_paths / strikes[None, None, :]
     basket_paths = np.min(performance, axis=2) if p.basket_method == "worst_of" else np.max(performance, axis=2)
     basket_ratios = np.min(normalized_levels, axis=2) if p.basket_method == "worst_of" else np.max(normalized_levels, axis=2)
-    terminal_ratio = basket_ratios[:, -1]
+    put_basket_performance = np.min(put_performance, axis=2) if p.basket_method == "worst_of" else np.max(put_performance, axis=2)
+    put_terminal_ratio = put_basket_performance[:, -1]
+    terminal_ratio = put_terminal_ratio if put_leg and put_leg.strike_ratio is not None else basket_ratios[:, -1]
+    put_strike_ratio = put_leg.strike_ratio if put_leg and put_leg.strike_ratio is not None else 1.0
     intrinsic_ratio = np.maximum(terminal_ratio - 1.0, 0.0) if p.option_type == "call" else np.maximum(1.0 - terminal_ratio, 0.0)
+    if p.option_type == "put" and put_leg and put_leg.strike_ratio is not None:
+        intrinsic_ratio = np.maximum(put_strike_ratio - put_terminal_ratio, 0.0)
     default_notional = request.common_economics.notional if request.common_economics and request.common_economics.notional else request.instrument.notional
     raw_intrinsic_payoff = intrinsic_ratio * default_notional
     intrinsic_payoff = raw_intrinsic_payoff.copy()
     funding_payoff = np.zeros(p.paths)
     coupon_payoff = np.zeros(p.paths)
-    state: dict[str, Any] = {"knock_in": request.lifecycle.already_knock_in, "already_knock_in": request.lifecycle.already_knock_in, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
-    knock_in_mask = np.full(p.paths, request.lifecycle.already_knock_in, dtype=bool)
+    state: dict[str, Any] = {"knock_in": put_already_ki, "already_knock_in": put_already_ki, "coupon_knock_in": coupon_already_ki, "coupon_ki_enabled": coupon_ki_enabled, "knock_out": False, "coupon_paid": 0.0, "memory_carry": 0.0}
+    knock_in_mask = np.full(p.paths, put_already_ki if put_ki_enabled else False, dtype=bool)
+    coupon_knock_in_mask = np.full(p.paths, coupon_already_ki if coupon_ki_enabled else False, dtype=bool)
     knock_out_mask = np.zeros(p.paths, dtype=bool)
     barrier_events: list[dict[str, Any]] = []
     barriers = [b if isinstance(b, BarrierSpec) else BarrierSpec.model_validate(b) for b in p.barriers]
+    if coupon_ki_enabled and coupon_leg:
+        barriers.extend(coupon_leg.barriers)
     barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, 1.0) for b in barriers]
-    for index, underlying in enumerate(underlyings):
-        for raw in underlying.barriers:
-            barrier_specs.append((underlying.name, raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw), performance[:, :, index], spots[index]))
+    if not (put_leg and put_leg.barriers):
+        for index, underlying in enumerate(underlyings):
+            for raw in underlying.barriers:
+                barrier_specs.append((underlying.name, raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw), performance[:, :, index], spots[index]))
     for underlying_name, original, barrier_path, reference in barrier_specs:
         b = _relative_barrier(original, reference if original.level_type == "absolute" else 1.0)
         hit_mask = _barrier_mask(barrier_path, b, p.eval_datetime, p.expiry)
         if np.any(hit_mask):
             barrier_events.append({"underlying": underlying_name or "basket", "event": b.event, "direction": b.direction, "level": original.level, "level_type": original.level_type, "monitoring": b.monitoring, "observation_dates": b.observation_dates, "hit_probability": float(np.mean(hit_mask))})
+            if b.event == "KI":
+                if put_ki_enabled:
+                    knock_in_mask |= hit_mask
+                    state["knock_in"] = True
+                if coupon_ki_enabled and coupon_leg and b in coupon_leg.barriers:
+                    coupon_knock_in_mask |= hit_mask
+                    state["coupon_knock_in"] = True
+    if put_ki_enabled and put_leg and put_leg.barriers:
+        for original in put_leg.barriers:
+            b = _relative_barrier(original, 1.0)
+            hit_mask = _barrier_mask(put_basket_performance, b, p.eval_datetime, p.expiry)
             if b.event == "KI":
                 knock_in_mask |= hit_mask
                 state["knock_in"] = True
@@ -539,15 +605,26 @@ def price_request(
                 state["knock_out"] = True
     if p.payoff_type in {"autocall", "fcn"} and p.accrual:
         accrual = p.accrual
-        obs_idx = np.linspace(1, p.steps, accrual.observations, dtype=int)
+        observation_dates = _leg_dates(coupon_leg, "observation_dates")
+        payment_dates = _leg_dates(coupon_leg, "payment_dates") or accrual.payment_dates
+        schedule_dates = observation_dates or payment_dates
+        if schedule_dates:
+            eval_date = date.fromisoformat(p.eval_datetime)
+            total_days = (date.fromisoformat(p.expiry) - eval_date).days
+            obs_idx = np.array([
+                max(1, min(p.steps, round((date.fromisoformat(raw) - eval_date).days / total_days * p.steps)))
+                for raw in schedule_dates
+            ], dtype=int)
+        else:
+            obs_idx = np.linspace(1, p.steps, accrual.observations, dtype=int)
         memory = np.zeros(p.paths)
         scheduled_n1 = accrual.n1
         scheduled_n2 = accrual.n2
         fixed_periods = accrual.fixed_n1_periods
-        if accrual.payment_dates and fixed_periods is None:
+        if payment_dates and fixed_periods is None:
             fixed_periods = sum(
                 date.fromisoformat(payment_date) <= date.fromisoformat(p.eval_datetime)
-                for payment_date in accrual.payment_dates
+                for payment_date in payment_dates
             )
         elif scheduled_n1 and fixed_periods is None:
             fixed_periods = accrual.observations
@@ -581,10 +658,11 @@ def price_request(
             coupon = coupon_rate * period_n1[period] / max(period_n2[period], 1)
             eligible = basket_ratios[:, idx] >= 1.0
             paid = np.where(eligible, coupon + (memory if accrual.memory else 0.0), 0.0)
-            if not accrual.pay_if_ki:
-                paid = np.where(knock_in_mask, 0.0, paid)
+            coupon_pay_if_ki = coupon_leg.pay_if_ki if coupon_leg and coupon_leg.pay_if_ki is not None else accrual.pay_if_ki
+            if coupon_ki_enabled and not coupon_pay_if_ki:
+                paid = np.where(coupon_knock_in_mask, 0.0, paid)
             memory = np.where(eligible, 0.0, memory + coupon)
-            is_realized = bool(accrual.payment_dates and date.fromisoformat(accrual.payment_dates[period]) <= date.fromisoformat(p.eval_datetime))
+            is_realized = bool(payment_dates and date.fromisoformat(payment_dates[period]) <= date.fromisoformat(p.eval_datetime))
             if is_realized:
                 coupon_realized_path += paid
             else:
@@ -765,6 +843,8 @@ def sensitivity(request: PricingRequest) -> dict[str, Any]:
                 p.option_type,
                 request.instrument.notional,
                 p.currency_conversion,
+                u.reference_price,
+                getattr(_leg_of_type(request, "intrinsic_option"), "strike_ratio", None),
             )
             model_name = "QuantLib-Risks analytic Black-Scholes-Merton"
         base = PriceResult(

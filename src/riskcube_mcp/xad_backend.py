@@ -25,8 +25,15 @@ def native_xad_vanilla_greeks(
     option_type: str,
     notional: float,
     currency_conversion: float,
+    reference_price: float | None = None,
+    strike_ratio: float | None = None,
 ) -> dict[str, Any]:
     """Price a vanilla option and collect first-order adjoints from QuantLib-Risks."""
+    effective_strike = (
+        reference_price * strike_ratio
+        if reference_price is not None and strike_ratio is not None
+        else strike
+    )
     eval_qldate = ql.Date(
         date.fromisoformat(eval_date).day,
         date.fromisoformat(eval_date).month,
@@ -63,7 +70,7 @@ def native_xad_vanilla_greeks(
         )
         ql_type = ql.Option.Call if option_type == "call" else ql.Option.Put
         option = ql.VanillaOption(
-            ql.PlainVanillaPayoff(ql_type, strike), ql.EuropeanExercise(expiry_qldate)
+            ql.PlainVanillaPayoff(ql_type, effective_strike), ql.EuropeanExercise(expiry_qldate)
         )
         option.setPricingEngine(ql.AnalyticEuropeanEngine(process))
         npv = option.NPV()
@@ -71,7 +78,7 @@ def native_xad_vanilla_greeks(
         tape.clearDerivatives()
         npv.derivative = 1.0
         tape.computeAdjoints()
-        scale = notional * currency_conversion / strike
+        scale = notional * currency_conversion / effective_strike
         return {
             "pv": _value(npv) * scale,
             "delta": _value(spot_real.derivative) * scale,

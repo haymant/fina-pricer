@@ -1,5 +1,5 @@
 ---
-name: fina-olap
+name: fina-olap-deprecated
 description: DuckDB OLAP over materialized RiskCube cells in memory or Parquet. Use for grouping, pivoting, rollups, window functions, scenario/version comparisons, AG Grid data services, and Tableau-style level-of-detail analysis.
 ---
 

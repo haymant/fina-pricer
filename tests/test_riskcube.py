@@ -192,6 +192,23 @@ def test_fcn_knock_in_redemption_is_capped_at_par() -> None:
     assert output["PV"] <= output["notional"] * (1.0 + case["parameters"]["accrual"]["coupon_rate"])
 
 
+def test_fcn_underlying_barrier_price_drives_knock_in_put_leg() -> None:
+    case = json.loads(ATTACHMENT_SAMPLE.read_text())
+    for underlying in case["UnwindMapRaw"]["underlyings"]:
+        underlying["barriers"] = []
+    case["parameters"]["barriers"] = []
+    case["parameters"]["accrual"] = {
+        "coupon_rate": 0.12,
+        "memory": True,
+        "observation_frequency": "monthly",
+        "observations": 12,
+        "pay_if_ki": True,
+    }
+    result = price_request(PricingRequest.model_validate(case))
+    assert any(event["event"] == "KI" for event in result.diagnostics["barrier_events"])
+    assert result.leg_values["intrinsic_option"].mean() < 0.0
+
+
 def test_basket_is_capped_at_three_underlyings() -> None:
     case = json.loads((ROOT / "data/basket_aapl_tsla.json").read_text())
     case["UnwindMapRaw"]["underlyings"].extend([
@@ -243,7 +260,7 @@ def test_fcn_outputs_intrinsic_funding_and_coupon_legs() -> None:
         "currency_conversion": 1.0,
     }
     case["Legs"] = [
-        {"leg_id": 10, "name": "SHORT_DOWNSIDE_PUT", "leg_type": "intrinsic_option", "sign": "long"},
+        {"leg_id": 10, "name": "SHORT_DOWNSIDE_PUT", "leg_type": "intrinsic_option", "sign": "short"},
         {"leg_id": 20, "name": "PAR_FUNDING", "leg_type": "funding"},
         {"leg_id": 30, "name": "MEMORY_COUPON", "leg_type": "coupon", "coupon_rate": 0.12, "memory": True},
     ]

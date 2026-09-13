@@ -626,8 +626,34 @@ def price_request(
     barrier_specs: list[tuple[str | None, BarrierSpec, np.ndarray, float]] = [(None, b, basket_paths, 1.0) for b in barriers]
     if not (put_leg and put_leg.barriers):
         for index, underlying in enumerate(underlyings):
+            has_ki = any(
+                (owner is None or owner == underlying.name) and spec.event == "KI"
+                for owner, spec, _, _ in barrier_specs
+            )
             for raw in underlying.barriers:
-                barrier_specs.append((underlying.name, raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw), performance[:, :, index], spots[index]))
+                original = raw if isinstance(raw, BarrierSpec) else BarrierSpec.model_validate(raw)
+                if original.event == "KI":
+                    has_ki = True
+                barrier_specs.append((underlying.name, original, performance[:, :, index], spots[index]))
+            if (
+                not has_ki
+                and p.payoff_type in {"fcn", "autocall"}
+                and underlying.barrierPrice is not None
+            ):
+                barrier_specs.append(
+                    (
+                        underlying.name,
+                        BarrierSpec(
+                            direction="down",
+                            event="KI",
+                            level=underlying.barrierPrice,
+                            level_type="absolute",
+                            monitoring="global",
+                        ),
+                        performance[:, :, index],
+                        spots[index],
+                    )
+                )
     for underlying_name, original, barrier_path, reference in barrier_specs:
         b = _relative_barrier(original, reference if original.level_type == "absolute" else 1.0)
         hit_mask = _barrier_mask(barrier_path, b, p.eval_datetime, p.expiry)

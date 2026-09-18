@@ -81,7 +81,7 @@ def read_parquet_from_gcs(
     configure_duckdb_gcs(connection)
     uri = gcs_object_uri(object_name)
     return connection.execute(
-        "SELECT * FROM read_parquet(?, hive_partitioning = ?)",
+        "SELECT * FROM read_parquet(?, hive_partitioning = ?, union_by_name = true)",
         [uri, hive_partitioning],
     ).fetchall()
 

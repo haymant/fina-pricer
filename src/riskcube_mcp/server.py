@@ -194,7 +194,7 @@ def olap_query(
     quoted_glob = glob_pattern.replace("'", "''")
     _drop_view_if_present(_store.connection, "riskcube_cells")
     _store.connection.execute(
-        f"CREATE OR REPLACE TEMP VIEW riskcube_cells AS SELECT * FROM read_parquet('{quoted_glob}')",
+        f"CREATE OR REPLACE TEMP VIEW riskcube_cells AS SELECT * FROM read_parquet('{quoted_glob}', union_by_name = true)",
     )
     try:
         result = _store.connection.execute(sql, parameters or []).fetchall()

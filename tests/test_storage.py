@@ -279,3 +279,30 @@ def test_partition_scoped_olap_reads_parquet_and_restores_memory(tmp_path: Path)
     cold = server.olap_query("SELECT count(*) AS n FROM riskcube_cells", version_id=1, scenario_id=1)
     assert cold["rows"] == [[4]]
     store2.close()
+
+
+def test_query_parquet_unions_additive_schema_columns(tmp_path: Path) -> None:
+    root = tmp_path / "riskcube"
+    partition = root / "version_id=1" / "scenario_id=1"
+    partition.mkdir(parents=True)
+    store = RiskCubeStore(":memory:", root)
+    old_path = partition / "report-old.parquet"
+    new_path = partition / "report-new.parquet"
+    store.connection.execute(
+        "COPY (SELECT 'old' AS instrument_id, 1.0::DOUBLE AS delta) TO ? (FORMAT PARQUET)",
+        [str(old_path)],
+    )
+    store.connection.execute(
+        "COPY (SELECT 'new' AS instrument_id, 2.0::DOUBLE AS delta, 10.0::DOUBLE AS pv) TO ? (FORMAT PARQUET)",
+        [str(new_path)],
+    )
+
+    rows = store.query_parquet(version=1, scenario_id=1)
+    columns = [item[0] for item in store.connection.description]
+    pv_index = columns.index("pv")
+
+    assert len(rows) == 2
+    assert {row[0] for row in rows} == {"old", "new"}
+    assert any(row[pv_index] is None for row in rows)
+    assert any(row[pv_index] == 10.0 for row in rows)
+    store.close()

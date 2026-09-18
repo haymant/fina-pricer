@@ -391,7 +391,10 @@ class RiskCubeStore:
             clauses.append("scenario_id = ?")
             params.append(int(scenario_id))
         where = " WHERE " + " AND ".join(clauses) if clauses else ""
-        return self.connection.execute("SELECT * FROM read_parquet(?)" + where, [pattern, *params]).fetchall()
+        return self.connection.execute(
+            "SELECT * FROM read_parquet(?, union_by_name = true)" + where,
+            [pattern, *params],
+        ).fetchall()
 
     def get_scenario(self, scenario_id: str | int) -> dict[str, Any] | None:
         row = self.connection.execute(
